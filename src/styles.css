@@ -11,29 +11,29 @@
   --bg-card-hover: #162438;
   --bg-input: #1e2b3b;
   --bg-input-border: #364a5b;
-  
+
   --text-primary: #e6eef5;
   --text-secondary: #9bb0c1;
   --text-muted: #6f8da4;
   --text-highlight: #ffffff;
-  
+
   --border-color: #273548;
   --border-subtle: #1d2b3c;
-  
+
   --accent-teal: #56cba9;
   --accent-teal-hover: #64dbc0;
   --accent-teal-bg: #102b2b;
   --accent-teal-text: #08221a;
-  
+
   --accent-amber: #f1bd7b;
   --accent-amber-bg: #45391f;
-  
+
   --accent-rose: #ffaca1;
   --accent-rose-bg: #4b292e;
 
   --shadow-card: 0 5px 17px rgba(0, 0, 0, 0.28);
   --modal-backdrop: rgba(4, 8, 14, 0.78);
-  
+
   color-scheme: dark;
 }
 
@@ -45,29 +45,29 @@
   --bg-card-hover: #f1f5f9;
   --bg-input: #ffffff;
   --bg-input-border: #cbd5e1;
-  
+
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --text-muted: #64748b;
   --text-highlight: #020617;
-  
+
   --border-color: #cbd5e1;
   --border-subtle: #e2e8f0;
-  
+
   --accent-teal: #0d9488;
   --accent-teal-hover: #14b8a6;
   --accent-teal-bg: #ccfbf1;
   --accent-teal-text: #ffffff;
-  
+
   --accent-amber: #b45309;
   --accent-amber-bg: #fef3c7;
-  
+
   --accent-rose: #dc2626;
   --accent-rose-bg: #fee2e2;
 
   --shadow-card: 0 4px 14px rgba(15, 23, 42, 0.08);
   --modal-backdrop: rgba(15, 23, 42, 0.65);
-  
+
   color-scheme: light;
 }
 
@@ -780,7 +780,7 @@ footer {
 .setup-canvas-container {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 16 / 9;
   background: #0f1826;
   border: 2px dashed var(--border-color);
   border-radius: 12px;
@@ -801,7 +801,7 @@ footer {
 .setup-background-img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: fill;
   display: block;
 }
 
@@ -811,14 +811,14 @@ footer {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-image: 
+  background-image:
     linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
 [data-theme="light"] .setup-schematic-bg {
-  background-image: 
+  background-image:
     linear-gradient(to right, rgba(0, 0, 0, 0.06) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(0, 0, 0, 0.06) 1px, transparent 1px);
 }
@@ -1354,7 +1354,7 @@ footer {
 .custom-map-image {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: fill;
   display: block;
 }
 
