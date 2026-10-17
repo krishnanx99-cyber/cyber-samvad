@@ -92,4 +92,42 @@ const zeroRateForecast = forecast(zeroRateState, 'none', 10)
 assert.ok(!Number.isNaN(zeroRateForecast.estimatedMainWaitMinutes) && Number.isFinite(zeroRateForecast.estimatedMainWaitMinutes), 'Zero main service rate must not produce NaN or Infinity')
 console.log('✔ Zero service rate edge case verified.')
 
-console.log('\nALL DEVELOPER C TESTS PASSED SUCCESSFULLY!')
+// 9. Test Edge Case: Overcapacity observed (150% in all zones)
+const overState = createInitialState('festival')
+for (const z of Object.values(overState.zones)) z.occupancy = Math.round(z.capacity * 1.5)
+const overF = forecast(overState, 'none', 10)
+assert.equal(overF.firstThresholdMinute, 0, 'firstThresholdMinute is 0 on overcapacity')
+assert.ok(overF.peakUtilization >= 1.5, 'peak utilization accurately captures overcapacity')
+console.log('✔ Observed overcapacity (150%) edge case verified.')
+
+// 10. Test Edge Case: Completely empty state & no breach through horizon
+const emptyState = createInitialState('normal')
+emptyState.config.arrivalRate = 0
+for (const z of Object.values(emptyState.zones)) z.occupancy = 0
+const emptyF = forecast(emptyState, 'none', 10)
+assert.equal(emptyF.firstThresholdMinute, null, 'firstThresholdMinute is null when no zone breaches 90%')
+assert.equal(emptyF.peakUtilization, 0, 'peak utilization is 0 for empty zones')
+assert.equal(emptyF.finalOutsideQueue, 0, 'outsideQueue is 0')
+console.log('✔ No breach / empty state edge case verified.')
+
+// 11. Stress Test: Extreme Configurations & Horizons
+const stressConfigs = [
+  { arrivalRate: 0, mainServiceRate: 0, secondaryServiceRate: 0, exitRate: 0, meteredGateRate: 0 },
+  { arrivalRate: 1000, mainServiceRate: 500, secondaryServiceRate: 500, exitRate: 500, meteredGateRate: 500 }
+]
+for (const cfg of stressConfigs) {
+  const s = createInitialState('surge')
+  s.config = cfg
+  for (const h of [1, 5, 10, 15]) {
+    for (const action of ['none', 'metered', 'staffedLane']) {
+      const f = forecast(s, action, h)
+      assert.ok(!Number.isNaN(f.score) && Number.isFinite(f.score), 'score is finite number')
+      assert.ok(!Number.isNaN(f.peakUtilization) && Number.isFinite(f.peakUtilization), 'peakUtilization is finite')
+      assert.ok(!Number.isNaN(f.estimatedMainWaitMinutes) && Number.isFinite(f.estimatedMainWaitMinutes), 'wait time is finite')
+      assert.equal(f.snapshots.length, h + 1, 'snapshot length equals h + 1')
+    }
+  }
+}
+console.log('✔ Extreme stress & fuzz configs verified.')
+
+console.log('\nALL DEVELOPER C TESTS PASSED SUCCESSFULLY (11/11 SUITES)!')
