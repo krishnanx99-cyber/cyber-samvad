@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { ZONE_IDS } from '../types'
 import type { ZoneId } from '../types'
 
 export interface ZoneConfig {
@@ -37,14 +38,53 @@ export const DEFAULT_TEMPLE_CONFIG: TempleConfig = {
 
 const STORAGE_KEY_CONFIG = 'darshanflow_temple_config'
 const STORAGE_KEY_THEME = 'darshanflow_theme'
+const ALLOWED_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp'])
+const MIN_ZONE_SIZE_PCT = 10
+const MAX_ZONE_CAPACITY = 5000
+
+/** Validate the persisted/imported shape before it reaches the interactive editor. */
+export function isValidTempleConfig(value: unknown): value is TempleConfig {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+
+  const candidate = value as Partial<TempleConfig>
+  if (typeof candidate.templeName !== 'string' || candidate.templeName.trim() === '') return false
+  if (candidate.imageDataUrl !== undefined && candidate.imageDataUrl !== null && typeof candidate.imageDataUrl !== 'string') {
+    return false
+  }
+  if (!candidate.zones || typeof candidate.zones !== 'object' || Array.isArray(candidate.zones)) return false
+
+  return ZONE_IDS.every((zoneId) => {
+    const zone = candidate.zones?.[zoneId]
+    if (!zone || typeof zone !== 'object') return false
+
+    const candidateZone = zone as Partial<ZoneConfig>
+    const isFiniteNumber = (input: unknown): input is number => typeof input === 'number' && Number.isFinite(input)
+    return candidateZone.id === zoneId
+      && typeof candidateZone.label === 'string'
+      && candidateZone.label.trim() !== ''
+      && isFiniteNumber(candidateZone.capacity)
+      && candidateZone.capacity >= 1
+      && candidateZone.capacity <= MAX_ZONE_CAPACITY
+      && isFiniteNumber(candidateZone.xPct)
+      && isFiniteNumber(candidateZone.yPct)
+      && isFiniteNumber(candidateZone.wPct)
+      && isFiniteNumber(candidateZone.hPct)
+      && candidateZone.xPct >= 0
+      && candidateZone.yPct >= 0
+      && candidateZone.wPct >= MIN_ZONE_SIZE_PCT
+      && candidateZone.hPct >= MIN_ZONE_SIZE_PCT
+      && candidateZone.xPct + candidateZone.wPct <= 100
+      && candidateZone.yPct + candidateZone.hPct <= 100
+  })
+}
 
 /** Retrieve saved configuration from localStorage, or return default */
 export function getStoredTempleConfig(): TempleConfig {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CONFIG)
     if (!raw) return DEFAULT_TEMPLE_CONFIG
-    const parsed = JSON.parse(raw) as TempleConfig
-    if (parsed && parsed.zones && parsed.zones.entry) return parsed
+    const parsed: unknown = JSON.parse(raw)
+    if (isValidTempleConfig(parsed)) return parsed
   } catch {
     // fallback if corrupted
   }
@@ -88,12 +128,13 @@ export interface TempleSetupProps {
   onClose?: () => void
 }
 
-export function TempleSetup({ config, onChange, isOpen = true, onClose }: TempleSetupProps) {
+export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, onClose }: TempleSetupProps) {
+  const config = isValidTempleConfig(incomingConfig) ? incomingConfig : DEFAULT_TEMPLE_CONFIG
   const [activeZone, setActiveZone] = useState<ZoneId>('entry')
   const [theme, setTheme] = useState<'dark' | 'light'>(() => getStoredTheme())
   const [isDraggingOver, setIsDraggingOver] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
-  
+
   const containerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragRef = useRef<{
@@ -140,7 +181,7 @@ export function TempleSetup({ config, onChange, isOpen = true, onClose }: Temple
 
   // Local-only image file reader (no server upload)
   const processImageFile = (file: File) => {
-    if (!file.type.startsWith('image/')) {
+    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
       alert('Please select a valid image file (PNG, JPG, WebP).')
       return
     }
@@ -250,8 +291,8 @@ export function TempleSetup({ config, onChange, isOpen = true, onClose }: Temple
     const reader = new FileReader()
     reader.onload = () => {
       try {
-        const parsed = JSON.parse(reader.result as string) as TempleConfig
-        if (parsed && parsed.zones && parsed.zones.entry) {
+        const parsed: unknown = JSON.parse(reader.result as string)
+        if (isValidTempleConfig(parsed)) {
           onChange(parsed)
           showMessage('Imported layout from JSON')
         } else {
@@ -377,8 +418,15 @@ export function TempleSetup({ config, onChange, isOpen = true, onClose }: Temple
                     }}
                     onPointerDown={(e) => handlePointerDown(e, id, 'move')}
                     onClick={() => setActiveZone(id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        setActiveZone(id)
+                      }
+                    }}
                     role="button"
                     tabIndex={0}
+                    aria-pressed={isSelected}
                     aria-label={`Zone ${z.label}`}
                   >
                     <div className="zone-box-header" style={{ background: accent.border }}>
