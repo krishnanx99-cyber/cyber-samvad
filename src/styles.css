@@ -182,6 +182,11 @@ h2 {
 
 .nav-item {
   display: flex;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
   gap: 12px;
   padding: 13px 12px;
   color: var(--text-secondary);
@@ -196,6 +201,8 @@ h2 {
   color: #bbf1e6;
   font-weight: 700;
 }
+
+.nav-item:hover:not(.active) { background: var(--bg-card-alt); color: var(--text-primary); }
 
 [data-theme="light"] .nav-item.active {
   background: #ccfbf1;
@@ -376,6 +383,26 @@ h2 {
   gap: 16px;
   margin-bottom: 16px;
 }
+
+.forecast-workspace { display: flex; flex-direction: column; gap: 16px; }
+.forecast-engine-hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; padding: 24px; background: linear-gradient(115deg, #102b39, var(--bg-card)); }
+.forecast-engine-hero h2 { margin: 5px 0 6px; }
+.forecast-engine-hero p { max-width: 580px; margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.5; }
+.horizon-switch { display: flex; border: 1px solid var(--border-color); border-radius: 9px; overflow: hidden; flex-shrink: 0; }
+.horizon-switch button { border: 0; border-right: 1px solid var(--border-color); padding: 9px 12px; background: var(--bg-card-alt); color: var(--text-secondary); font-size: 11px; font-weight: 800; }
+.horizon-switch button:last-child { border-right: 0; }
+.horizon-switch button.active { background: var(--accent-teal); color: #06221f; }
+.forecast-engine-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(270px, .7fr); gap: 16px; }
+.forecast-chart-card, .forecast-readout, .scenario-picker, .ledger-workspace { padding: 22px; }
+.forecast-readout { display: flex; flex-direction: column; gap: 18px; }
+.forecast-verdict { display: flex; flex-direction: column; gap: 5px; padding: 13px; background: var(--bg-card-alt); border-left: 3px solid var(--accent-amber); border-radius: 7px; }
+.forecast-verdict strong { font-size: 16px; }
+.forecast-verdict span { color: var(--text-secondary); font-size: 11px; }
+.forecast-readout-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.forecast-readout-list div { padding: 10px; border: 1px solid var(--border-color); border-radius: 7px; background: var(--bg-card-alt); }
+.forecast-readout-list span { display: block; color: var(--text-muted); font-size: 10px; min-height: 25px; }
+.forecast-readout-list b { font-size: 18px; color: var(--text-primary); }
+.ledger-workspace { min-height: 420px; }
 
 .map-card, .prediction-card, .action-card, .ledger-card {
   padding: 20px;

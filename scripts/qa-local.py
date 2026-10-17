@@ -31,6 +31,12 @@ def main() -> None:
         checks["route_persists"] = page.get_by_role("dialog").locator("select[aria-label='Route 1 to']").input_value() == "queueB"
         page.locator("button[aria-label='Close setup modal']").click()
 
+        page.get_by_role("button", name="Forecast engine").click()
+        checks["forecast_workspace_opens"] = page.get_by_role("heading", name="Scenario projection workspace").is_visible()
+        page.get_by_role("button", name="15 min").click()
+        checks["forecast_metrics_visible"] = page.get_by_text("Completed visitors", exact=True).is_visible()
+        page.get_by_role("button", name="Command center").click()
+
         page.locator("select").nth(0).select_option("observations")
         checks["observation_badge"] = page.get_by_text("STAFF OBSERVATIONS", exact=True).is_visible()
         page.get_by_role("button", name="Synthetic gate +10").click()

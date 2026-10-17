@@ -12,6 +12,7 @@ import { ZONE_IDS } from './types'
 import type { InterventionId, ScenarioId, ZoneId } from './types'
 
 type InputMode = 'simulation' | 'observations'
+type Workspace = 'command' | 'forecast' | 'ledger'
 
 const interventions: {id:InterventionId;title:string;description:string}[] = [
   {id:'none',title:'No intervention',description:'Continue current operations'},
@@ -23,6 +24,7 @@ export default function App() {
   const [state,setState] = useState(() => createInitialState('surge'))
   const [running,setRunning] = useState(false)
   const [inputMode,setInputMode] = useState<InputMode>('simulation')
+  const [workspace,setWorkspace] = useState<Workspace>('command')
   const [forecastHorizon,setForecastHorizon] = useState<5 | 10 | 15>(10)
   const [selectedZone,setSelectedZone] = useState<ZoneId>('queueA')
   const [templeConfig,setTempleConfig] = useState<TempleConfig>(() => getStoredTempleConfig())
@@ -131,7 +133,7 @@ export default function App() {
   return <div className="app-shell">
     <aside className="sidebar">
       <div className="brand-mark"><span className="brand-symbol">✦</span><div><b>DARSHANFLOW</b><small>OPERATIONS INTELLIGENCE</small></div></div>
-      <div className="side-section"><div className="side-heading">OPERATIONS</div><div className="nav-item active">◈ <span>Command center</span></div><div className="nav-item">◷ <span>Forecast engine</span></div><div className="nav-item">▤ <span>Incident ledger</span></div></div>
+      <div className="side-section"><div className="side-heading">OPERATIONS</div><button className={`nav-item ${workspace==='command'?'active':''}`} onClick={() => setWorkspace('command')}>◈ <span>Command center</span></button><button className={`nav-item ${workspace==='forecast'?'active':''}`} onClick={() => setWorkspace('forecast')}>◷ <span>Forecast engine</span></button><button className={`nav-item ${workspace==='ledger'?'active':''}`} onClick={() => setWorkspace('ledger')}>▤ <span>Incident ledger</span></button></div>
       <div className="sidebar-foot"><span className="status-pulse"/> Synthetic simulation<br/><small>No personal data. No real routing.</small></div>
     </aside>
     <main className="main">
@@ -144,6 +146,7 @@ export default function App() {
         <div className="toolbar-actions"><button onClick={()=>setRunning(!running)} disabled={inputMode === 'observations'} className="primary">{running?'Ⅱ Pause':'▶ Play'}</button><button onClick={()=>setState(s=>stepSimulation(s))} disabled={running || inputMode === 'observations'}>+1 min</button><button onClick={()=>reset(state.scenario)}>↺ Reset</button></div>
         <span className="sim-minute">T+{state.minute} MIN</span>
       </section>
+      {workspace==='command' && <>
       <section className="stat-grid">
         <article className="stat card"><span>Visitors in managed zones</span><strong>{Object.values(state.zones).reduce((sum,z)=>sum+z.occupancy,0)}</strong><small>Outside waiting: {state.outsideQueue}</small></article>
         <article className="stat card"><span>Main queue occupancy</span><strong>{pct(state.zones.queueA.occupancy,state.zones.queueA.capacity)}%</strong><small>{state.zones.queueA.occupancy} / {state.zones.queueA.capacity} people</small></article>
@@ -175,6 +178,13 @@ export default function App() {
         <div className="card action-card"><div className="section-title"><div><div className="eyebrow">HUMAN-IN-THE-LOOP</div><h2>Intervention lab</h2></div><span className="small-tag">What-if analysis</span></div><div className="interventions">{interventions.map(option=><button key={option.id} className={`option ${candidate===option.id?'selected':''}`} onClick={()=>setCandidate(option.id)}><b>{option.title}</b><span>{option.description}</span></button>)}</div><div className="action-note"><b>Comparison trade-off</b><p>Lowest model-penalty option: {interventions.find(i => i.id===forecasts.preferred.intervention)?.title}. {forecasts.explanation} Selected option score: {alternative.score}; baseline: {forecasts.baseline.score}. Scores are toy-model comparisons, not guarantees of safety.</p></div><div className="action-buttons"><button onClick={()=>apply(candidate)} className="primary">Apply simulated action →</button><span>Staff authorisation required in real operations</span></div></div>
         <div className="card ledger-card"><div className="section-title"><div><div className="eyebrow">ACCOUNTABILITY</div><h2>Operations log</h2></div><span className="small-tag">{audit.length} events</span></div><div className="ledger">{audit.map((item,index)=><div className="log" key={`${index}-${item}`}><i/> <span>{item}</span></div>)}</div><div className="responsible">Safety note: all crowd counts are synthetic. Real rerouting requires site assessment, authorised staff, route checks and validation.</div></div>
       </section>
+      </>}
+      {workspace==='forecast' && <section className="forecast-workspace">
+        <div className="card forecast-engine-hero"><div><div className="eyebrow">FORECAST ENGINE</div><h2>Scenario projection workspace</h2><p>Replay the current snapshot through a transparent deterministic crowd model. This is planning support, not a live safety prediction.</p></div><div className="horizon-switch" aria-label="Forecast horizon">{([5,10,15] as const).map(minutes => <button key={minutes} className={forecastHorizon===minutes?'active':''} onClick={() => setForecastHorizon(minutes)}>{minutes} min</button>)}</div></div>
+        <div className="forecast-engine-grid"><div className="card forecast-chart-card"><div className="section-title"><div><div className="eyebrow">QUEUE TRAJECTORY</div><h2>Baseline vs selected scenario</h2></div><span className="small-tag">T+{state.minute} snapshot</span></div><ForecastChart baseline={forecasts.baseline} alternative={alternative} capacity={state.zones.queueA.capacity}/></div><div className="card forecast-readout"><div className="eyebrow">MODEL READOUT</div><div className="forecast-verdict"><strong>{risk===null?'No threshold crossing':`Threshold at T+${risk} min`}</strong><span>{risk===null?`No zone reaches 90% in ${forecastHorizon} minutes.`:'Baseline reaches ≥90% utilisation.'}</span></div><div className="forecast-readout-list"><div><span>Baseline queue</span><b>{forecasts.baseline.finalMainQueue}</b></div><div><span>Selected queue</span><b>{alternative.finalMainQueue}</b></div><div><span>Estimated wait</span><b>{Number.isFinite(alternative.estimatedMainWaitMinutes)?`${Math.ceil(alternative.estimatedMainWaitMinutes)} min`:'No service'}</b></div><div><span>Completed visitors</span><b>+{alternative.additionalProcessed}</b></div><div><span>Outside backlog</span><b>{alternative.finalOutsideQueue}</b></div></div></div></div>
+        <div className="card scenario-picker"><div className="section-title"><div><div className="eyebrow">CANDIDATE SCENARIOS</div><h2>Compare staff-approved options</h2></div><span className="small-tag">Human review required</span></div><div className="interventions">{interventions.map(option=><button key={option.id} className={`option ${candidate===option.id?'selected':''}`} onClick={()=>setCandidate(option.id)}><b>{option.title}</b><span>{option.description}</span></button>)}</div><div className="action-note"><b>Current model trade-off</b><p>{forecasts.explanation} Selected score: {alternative.score}; baseline score: {forecasts.baseline.score}. Metering can move demand outside; scores are not safety conclusions.</p></div></div>
+      </section>}
+      {workspace==='ledger' && <section className="card ledger-workspace"><div className="section-title"><div><div className="eyebrow">ACCOUNTABILITY</div><h2>Incident ledger</h2></div><span className="small-tag">{audit.length} events</span></div><p className="responsible">This log records simulated actions and source-labelled demonstration observations. It is not a live incident-management system.</p><div className="ledger">{audit.map((item,index)=><div className="log" key={`${index}-${item}`}><i/> <span>{item}</span></div>)}</div></section>}
       <footer>DarshanFlow — a student hackathon simulation. Not a real-time certified crowd-safety system.</footer>
     </main>
     <TempleSetup config={templeConfig} onChange={updateTempleConfig} isOpen={showSetup} onClose={() => setShowSetup(false)} />
