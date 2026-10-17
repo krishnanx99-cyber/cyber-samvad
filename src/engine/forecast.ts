@@ -44,7 +44,11 @@ export function forecast(state: SimulationState, intervention: InterventionId, h
     finalOutsideQueue: current.outsideQueue,
     additionalProcessed,
     finalMainQueue: current.zones.queueA.occupancy,
-    estimatedMainWaitMinutes: current.zones.queueA.occupancy / Math.max(1, state.config.mainServiceRate),
+    // A zero service rate means the queue cannot clear under this model; do not
+    // disguise that condition as a finite wait based on an invented rate of 1.
+    estimatedMainWaitMinutes: state.config.mainServiceRate > 0
+      ? current.zones.queueA.occupancy / state.config.mainServiceRate
+      : Number.POSITIVE_INFINITY,
     score
   }
 }

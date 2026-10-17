@@ -63,8 +63,13 @@ assert.equal(comp.options[2].intervention, 'staffedLane', 'Third option must be 
 // All 3 options start from the exact same t=0 snapshot
 assert.deepEqual(comp.options[0].snapshots[0], comp.options[1].snapshots[0], 'All options must share identical t=0 snapshot')
 assert.deepEqual(comp.options[0].snapshots[0], comp.options[2].snapshots[0], 'All options must share identical t=0 snapshot')
-// Metering must keep excess arrivals in outsideQueue compared to baseline
-assert.ok(comp.options[1].finalOutsideQueue >= comp.options[0].finalOutsideQueue, 'Metered admission must increase or maintain outside backlog')
+// Metering must visibly hold excess demand outside when arrivals exceed the gate rate.
+const meteringState = createInitialState('surge')
+meteringState.config.arrivalRate = 50
+meteringState.config.meteredGateRate = 10
+const metered = forecast(meteringState, 'metered', 5)
+const unmetered = forecast(meteringState, 'none', 5)
+assert.ok(metered.finalOutsideQueue > unmetered.finalOutsideQueue, 'Metering must create a visible outside backlog when gate capacity is lower than demand')
 // Staffed lane must increase or maintain throughput compared to baseline
 assert.ok(comp.options[2].additionalProcessed >= comp.options[0].additionalProcessed, 'Staffed lane must increase or maintain processed throughput')
 assert.ok(['none', 'metered', 'staffedLane'].includes(comp.preferred.intervention), 'Preferred intervention must be one of the 3 options')
@@ -89,10 +94,21 @@ console.log('✔ t=0 breach edge case verified.')
 const zeroRateState = createInitialState('normal')
 zeroRateState.config.mainServiceRate = 0
 const zeroRateForecast = forecast(zeroRateState, 'none', 10)
-assert.ok(!Number.isNaN(zeroRateForecast.estimatedMainWaitMinutes) && Number.isFinite(zeroRateForecast.estimatedMainWaitMinutes), 'Zero main service rate must not produce NaN or Infinity')
+assert.equal(zeroRateForecast.estimatedMainWaitMinutes, Infinity, 'Zero main service rate must report an unavailable/infinite modeled wait')
 console.log('✔ Zero service rate edge case verified.')
 
-// 9. Test Edge Case: Overcapacity observed (150% in all zones)
+// 9. Test Edge Case: threshold first reached after t=0.
+const laterThresholdState = createInitialState('normal')
+laterThresholdState.config.arrivalRate = 50
+laterThresholdState.zones.entry.occupancy = 80
+laterThresholdState.zones.queueA.occupancy = 250
+laterThresholdState.zones.queueB.occupancy = 0
+laterThresholdState.zones.darshan.occupancy = 0
+const laterThreshold = forecast(laterThresholdState, 'none', 5)
+assert.equal(laterThreshold.firstThresholdMinute, 2, 'Forecast must report the first later >=90% threshold crossing')
+console.log('✔ Later threshold crossing edge case verified.')
+
+// 10. Test Edge Case: Overcapacity observed (150% in all zones)
 const overState = createInitialState('festival')
 for (const z of Object.values(overState.zones)) z.occupancy = Math.round(z.capacity * 1.5)
 const overF = forecast(overState, 'none', 10)
@@ -100,7 +116,7 @@ assert.equal(overF.firstThresholdMinute, 0, 'firstThresholdMinute is 0 on overca
 assert.ok(overF.peakUtilization >= 1.5, 'peak utilization accurately captures overcapacity')
 console.log('✔ Observed overcapacity (150%) edge case verified.')
 
-// 10. Test Edge Case: Completely empty state & no breach through horizon
+// 11. Test Edge Case: Completely empty state & no breach through horizon
 const emptyState = createInitialState('normal')
 emptyState.config.arrivalRate = 0
 for (const z of Object.values(emptyState.zones)) z.occupancy = 0
@@ -110,7 +126,7 @@ assert.equal(emptyF.peakUtilization, 0, 'peak utilization is 0 for empty zones')
 assert.equal(emptyF.finalOutsideQueue, 0, 'outsideQueue is 0')
 console.log('✔ No breach / empty state edge case verified.')
 
-// 11. Stress Test: Extreme Configurations & Horizons
+// 12. Stress Test: Extreme Configurations & Horizons
 const stressConfigs = [
   { arrivalRate: 0, mainServiceRate: 0, secondaryServiceRate: 0, exitRate: 0, meteredGateRate: 0 },
   { arrivalRate: 1000, mainServiceRate: 500, secondaryServiceRate: 500, exitRate: 500, meteredGateRate: 500 }
@@ -123,7 +139,10 @@ for (const cfg of stressConfigs) {
       const f = forecast(s, action, h)
       assert.ok(!Number.isNaN(f.score) && Number.isFinite(f.score), 'score is finite number')
       assert.ok(!Number.isNaN(f.peakUtilization) && Number.isFinite(f.peakUtilization), 'peakUtilization is finite')
-      assert.ok(!Number.isNaN(f.estimatedMainWaitMinutes) && Number.isFinite(f.estimatedMainWaitMinutes), 'wait time is finite')
+      assert.ok(
+        f.estimatedMainWaitMinutes === Infinity || Number.isFinite(f.estimatedMainWaitMinutes),
+        'wait time is finite or explicitly unavailable when the main service rate is zero'
+      )
       assert.equal(f.snapshots.length, h + 1, 'snapshot length equals h + 1')
     }
   }

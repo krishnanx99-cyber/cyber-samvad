@@ -147,7 +147,7 @@ export default function App() {
       <section className="stat-grid">
         <article className="stat card"><span>Visitors in managed zones</span><strong>{Object.values(state.zones).reduce((sum,z)=>sum+z.occupancy,0)}</strong><small>Outside waiting: {state.outsideQueue}</small></article>
         <article className="stat card"><span>Main queue occupancy</span><strong>{pct(state.zones.queueA.occupancy,state.zones.queueA.capacity)}%</strong><small>{state.zones.queueA.occupancy} / {state.zones.queueA.capacity} people</small></article>
-        <article className="stat card"><span>Projected main wait</span><strong>{Math.ceil(state.zones.queueA.occupancy/state.config.mainServiceRate)} min</strong><small>Queue length ÷ service rate</small></article>
+        <article className="stat card"><span>Projected main wait</span><strong>{state.config.mainServiceRate > 0 ? `${Math.ceil(state.zones.queueA.occupancy/state.config.mainServiceRate)} min` : 'Unavailable'}</strong><small>Queue length ÷ service rate</small></article>
         <article className="stat card"><span>High-pressure zones</span><strong className={hotspots?'warn-text':''}>{hotspots}</strong><small>Zones at ≥85% capacity</small></article>
       </section>
       <section className="main-grid">
