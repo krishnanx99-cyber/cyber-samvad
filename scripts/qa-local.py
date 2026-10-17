@@ -19,23 +19,8 @@ def main() -> None:
         checks["dashboard_heading"] = page.get_by_role("heading", name="Crowd Command Center").is_visible()
         checks["forecast"] = page.get_by_text("10-minute forecast").is_visible()
         checks["simulated_badge"] = page.get_by_text("SIMULATED DATA").is_visible()
-        checks["calibrate_button"] = page.locator("button.map-setup-btn").is_visible()
-
-        page.locator("button.map-setup-btn").click()
-        checks["setup_dialog_opens"] = page.get_by_role("dialog").is_visible()
-        zone_ids = [value.strip().lower() for value in page.get_by_role("dialog").locator(".zone-box-id").all_inner_texts()]
-        checks["setup_zones"] = set(("entry", "queuea", "queueb", "darshan")).issubset(zone_ids)
-
-        # A calibration adjustment must survive Apply & Return and a full reload.
-        dialog = page.get_by_role("dialog")
-        x_position_slider = dialog.locator("input[type='range']").nth(0)
-        x_position_slider.fill("42")
-        page.get_by_role("button", name="Apply & Return to Dashboard").click()
-        page.reload(wait_until="networkidle")
-        page.locator("button.map-setup-btn").click()
-        checks["calibration_persists"] = page.get_by_role("dialog").locator("input[type='range']").nth(0).input_value() == "42"
-        page.locator("button[aria-label='Close setup modal']").click()
-        checks["setup_dialog_closes"] = not page.get_by_role("dialog").is_visible()
+        checks["schematic_context"] = page.get_by_text("Four-zone operational flow", exact=False).is_visible()
+        checks["schematic_disclaimer"] = page.get_by_text("ROUTE GEOMETRY REQUIRES", exact=False).is_visible()
 
         page.locator("select").nth(0).select_option("observations")
         checks["observation_badge"] = page.get_by_text("STAFF OBSERVATIONS", exact=True).is_visible()

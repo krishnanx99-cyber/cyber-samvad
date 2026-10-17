@@ -45,7 +45,8 @@ assert(mapContent.includes('NORMAL'), 'TempleMap must output NORMAL status')
 
 // 6. Verify Fallback and Backward Compatibility
 assert(mapContent.includes('hasCustomImage'), 'TempleMap must branch on custom image availability')
-assert(mapContent.includes('SIMULATED COUNTS'), 'TempleMap must include synthetic disclaimer in schematic')
+assert(mapContent.includes('SIMULATED OPERATIONS LAYOUT'), 'TempleMap must label the schematic as simulated')
+assert(mapContent.includes('ON-SITE VALIDATION'), 'TempleMap must disclose that route geometry needs on-site validation')
 assert(mapContent.includes('custom-map-viewport'), 'TempleMap must support custom floor-plan viewport')
 
 console.log('✅ ALL DEVELOPER B COMPONENT VERIFICATIONS PASSED CLEANLY!')

@@ -55,8 +55,7 @@ export function TempleMap({
   selectedZone,
   onSelect,
   config,
-  sourceBadge = 'SIMULATED DATA',
-  onOpenSetup
+  sourceBadge = 'SIMULATED DATA'
 }: TempleMapProps) {
   const hasCustomImage = Boolean(config?.imageDataUrl)
 
@@ -80,17 +79,7 @@ export function TempleMap({
             <i style={{ background: '#ffaca1' }} /> ≥90% Critical
           </span>
         </div>
-
-        {onOpenSetup && (
-          <button
-            type="button"
-            className="map-setup-btn"
-            onClick={onOpenSetup}
-            title="Configure floor plan and zone positions"
-          >
-            ⚙ Calibrate Map
-          </button>
-        )}
+        <div className="map-context">Four-zone operational flow • schematic view</div>
       </div>
 
       {/* Main View: Custom Uploaded Floor Plan OR Default SVG Schematic */}
@@ -214,14 +203,43 @@ export function TempleMap({
             </marker>
           </defs>
 
-          {/* Grid background */}
-          <rect width="670" height="354" fill="#111c2a" rx="12" />
-          <rect width="670" height="354" fill="url(#mapgrid)" rx="12" />
+          <linearGradient id="mapSurface" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#14283a" />
+            <stop offset="55%" stopColor="#0e1b2a" />
+            <stop offset="100%" stopColor="#09131f" />
+          </linearGradient>
+          <filter id="nodeGlow" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
 
-          {/* Directional Flow Pathways */}
+          {/* Schematic site envelope. It communicates operational flow, not a real floor plan. */}
+          <rect width="670" height="354" fill="url(#mapSurface)" rx="12" />
+          <rect width="670" height="354" fill="url(#mapgrid)" rx="12" />
+          <rect x="11" y="11" width="648" height="332" rx="10" fill="none" stroke="#38536a" strokeWidth="1" />
+          <path d="M23 34 H646" stroke="#2f5268" strokeWidth="1" strokeDasharray="2 8" />
+          <text x="25" y="27" fill="#86a7ba" fontSize="9" fontWeight="700" letterSpacing="1.6">TEMPLE OPERATIONS SCHEMATIC</text>
+          <text x="645" y="27" fill="#5c8796" fontSize="8" textAnchor="end">SIMULATED FLOW</text>
+
+          {/* Subtle precincts give each monitored zone spatial context. */}
+          <rect x="18" y="55" width="190" height="268" rx="18" fill="#123244" opacity=".3" stroke="#2d6376" strokeDasharray="5 6" />
+          <rect x="210" y="55" width="246" height="222" rx="24" fill="#163a42" opacity=".28" stroke="#3a716f" strokeDasharray="5 6" />
+          <rect x="462" y="74" width="188" height="214" rx="32" fill="#243348" opacity=".34" stroke="#52687e" strokeDasharray="5 6" />
+          <text x="28" y="73" fill="#6494a9" fontSize="8" fontWeight="700" letterSpacing="1.2">ARRIVAL FORECOURT</text>
+          <text x="224" y="73" fill="#73a99a" fontSize="8" fontWeight="700" letterSpacing="1.2">QUEUE PRECINCT</text>
+          <text x="477" y="92" fill="#8ba7bf" fontSize="8" fontWeight="700" letterSpacing="1.2">DARSHAN AXIS</text>
+
+          {/* Directional routes are intentionally visible so a judge understands flow in seconds. */}
           <path
             d="M 112 160 L 112 184"
-            stroke="#6f8da4"
+            stroke="#4f8093"
+            strokeWidth="10"
+            opacity=".22"
+            fill="none"
+          />
+          <path
+            d="M 112 160 L 112 184"
+            stroke="#86b4c7"
             strokeWidth="3"
             strokeDasharray="6 4"
             markerEnd="url(#arrow)"
@@ -229,7 +247,14 @@ export function TempleMap({
           />
           <path
             d="M 200 100 L 224 100"
-            stroke="#6f8da4"
+            stroke="#4f8093"
+            strokeWidth="10"
+            opacity=".22"
+            fill="none"
+          />
+          <path
+            d="M 200 100 L 224 100"
+            stroke="#86b4c7"
             strokeWidth="3"
             strokeDasharray="6 4"
             markerEnd="url(#arrow)"
@@ -237,7 +262,14 @@ export function TempleMap({
           />
           <path
             d="M 200 250 L 224 220"
-            stroke="#6f8da4"
+            stroke="#4f8093"
+            strokeWidth="10"
+            opacity=".22"
+            fill="none"
+          />
+          <path
+            d="M 200 250 L 224 220"
+            stroke="#86b4c7"
             strokeWidth="3"
             strokeDasharray="6 4"
             markerEnd="url(#arrow)"
@@ -245,7 +277,14 @@ export function TempleMap({
           />
           <path
             d="M 446 130 L 470 130"
-            stroke="#6f8da4"
+            stroke="#4f8093"
+            strokeWidth="10"
+            opacity=".22"
+            fill="none"
+          />
+          <path
+            d="M 446 130 L 470 130"
+            stroke="#86b4c7"
             strokeWidth="3"
             strokeDasharray="6 4"
             markerEnd="url(#arrow)"
@@ -253,7 +292,14 @@ export function TempleMap({
           />
           <path
             d="M 446 213 L 470 213"
-            stroke="#6f8da4"
+            stroke="#4f8093"
+            strokeWidth="10"
+            opacity=".22"
+            fill="none"
+          />
+          <path
+            d="M 446 213 L 470 213"
+            stroke="#86b4c7"
             strokeWidth="3"
             strokeDasharray="6 4"
             markerEnd="url(#arrow)"
@@ -296,6 +342,7 @@ export function TempleMap({
                   fill={visuals.fill}
                   stroke={isSelected ? '#ffffff' : visuals.border}
                   strokeWidth={isSelected ? 3.5 : 1.2}
+                  filter={isSelected ? 'url(#nodeGlow)' : undefined}
                 />
                 {/* Zone Label */}
                 <text
@@ -348,9 +395,8 @@ export function TempleMap({
             )
           })}
 
-          {/* Watermark disclaimer */}
-          <text x="25" y="340" fontSize="11" fill="#adc2d0">
-            SIMULATED COUNTS • schematic layout, not real navigation
+          <text x="25" y="333" fontSize="10" fill="#8eacbb">
+            SIMULATED OPERATIONS LAYOUT • ROUTE GEOMETRY REQUIRES ON-SITE VALIDATION
           </text>
         </svg>
       )}
