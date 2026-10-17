@@ -53,13 +53,23 @@ compareInterventions(pristineState, 15)
 assert.deepEqual(pristineState, pristineStateCopy, 'State must remain completely unmutated after forecasting and comparison')
 console.log('✔ Immutability verified.')
 
-// 5. Test Comparison with 3 Interventions
+// 5. Test Comparison with 3 Interventions from SAME initial state
 const comp = compareInterventions(surgeState, 10)
 assert.ok(comp.baseline, 'Comparison must include baseline')
 assert.equal(comp.options.length, 3, 'Comparison must have exactly 3 options (none, metered, staffedLane)')
+assert.equal(comp.options[0].intervention, 'none', 'First option must be none')
+assert.equal(comp.options[1].intervention, 'metered', 'Second option must be metered')
+assert.equal(comp.options[2].intervention, 'staffedLane', 'Third option must be staffedLane')
+// All 3 options start from the exact same t=0 snapshot
+assert.deepEqual(comp.options[0].snapshots[0], comp.options[1].snapshots[0], 'All options must share identical t=0 snapshot')
+assert.deepEqual(comp.options[0].snapshots[0], comp.options[2].snapshots[0], 'All options must share identical t=0 snapshot')
+// Metering must keep excess arrivals in outsideQueue compared to baseline
+assert.ok(comp.options[1].finalOutsideQueue >= comp.options[0].finalOutsideQueue, 'Metered admission must increase or maintain outside backlog')
+// Staffed lane must increase or maintain throughput compared to baseline
+assert.ok(comp.options[2].additionalProcessed >= comp.options[0].additionalProcessed, 'Staffed lane must increase or maintain processed throughput')
 assert.ok(['none', 'metered', 'staffedLane'].includes(comp.preferred.intervention), 'Preferred intervention must be one of the 3 options')
 assert.ok(typeof comp.explanation === 'string' && comp.explanation.length > 10, 'Explanation must be a non-empty descriptive string')
-console.log('✔ Intervention comparisons and explanation verified.')
+console.log('✔ Intervention comparisons, divergent trajectories, and explanations verified.')
 
 // 6. Test Scenario Divergence
 const normalF = forecast(createInitialState('normal'), 'none', 10)
