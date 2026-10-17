@@ -6,6 +6,9 @@ import { compareInterventions } from './engine/forecast'
 import { applyObservation, type Boundary, type Observation } from './engine/observations'
 import { ForecastChart } from './components/ForecastChart'
 import { TempleMap } from './components/TempleMap'
+import { TempleSetup, getStoredTempleConfig, saveStoredTempleConfig } from './components/TempleSetup'
+import type { TempleConfig } from './components/TempleSetup'
+import { ZONE_IDS } from './types'
 import type { InterventionId, ScenarioId, ZoneId } from './types'
 
 type InputMode = 'simulation' | 'observations'
@@ -22,6 +25,8 @@ export default function App() {
   const [inputMode,setInputMode] = useState<InputMode>('simulation')
   const [forecastHorizon,setForecastHorizon] = useState<5 | 10 | 15>(10)
   const [selectedZone,setSelectedZone] = useState<ZoneId>('queueA')
+  const [templeConfig,setTempleConfig] = useState<TempleConfig>(() => getStoredTempleConfig())
+  const [showSetup,setShowSetup] = useState(false)
   const [candidate,setCandidate] = useState<InterventionId>('staffedLane')
   const [correctionZone,setCorrectionZone] = useState<ZoneId>('queueA')
   const [correctionCount,setCorrectionCount] = useState('')
@@ -35,6 +40,17 @@ export default function App() {
   const zone = state.zones[selectedZone]
   const hotspots = Object.values(state.zones).filter(z => z.occupancy/z.capacity>=.85).length
   const risk = forecasts.baseline.firstThresholdMinute
+  const syncStateWithTempleConfig = (nextState: ReturnType<typeof createInitialState>, nextConfig = templeConfig) => {
+    const zones = { ...nextState.zones }
+    ZONE_IDS.forEach(id => {
+      zones[id] = {
+        ...zones[id],
+        label: nextConfig.zones[id].label,
+        capacity: nextConfig.zones[id].capacity
+      }
+    })
+    return { ...nextState, zones }
+  }
   useEffect(() => {
     if (!running || inputMode !== 'simulation') return
     const interval = window.setInterval(() => setState(prev => stepSimulation(prev)), 900)
@@ -42,10 +58,15 @@ export default function App() {
   }, [running, inputMode])
   const reset = (scenario:ScenarioId) => {
     setRunning(false)
-    setState(createInitialState(scenario))
+    setState(syncStateWithTempleConfig(createInitialState(scenario)))
     handledObservationIds.current.clear()
     setLastObservationAt(null)
     setAudit([`Simulation reset: ${SCENARIOS[scenario].label}`])
+  }
+  const updateTempleConfig = (nextConfig: TempleConfig) => {
+    setTempleConfig(nextConfig)
+    saveStoredTempleConfig(nextConfig)
+    setState(prev => syncStateWithTempleConfig(prev, nextConfig))
   }
   const setMode = (mode: InputMode) => {
     setInputMode(mode)
@@ -130,7 +151,7 @@ export default function App() {
         <article className="stat card"><span>High-pressure zones</span><strong className={hotspots?'warn-text':''}>{hotspots}</strong><small>Zones at ≥85% capacity</small></article>
       </section>
       <section className="main-grid">
-        <div className="card map-card"><div className="section-title"><div><div className="eyebrow">SPATIAL OPERATIONS</div><h2>Zone occupancy map</h2></div><span className="small-tag">Click a zone</span></div><TempleMap zones={state.zones} selectedZone={selectedZone} onSelect={setSelectedZone}/><div className="map-bottom"><div><b>{zone.label}</b><span>{zone.occupancy} / {zone.capacity} • {pct(zone.occupancy,zone.capacity)}% utilisation</span></div><div className={`severity ${pct(zone.occupancy,zone.capacity)>=90?'high':pct(zone.occupancy,zone.capacity)>=75?'medium':'low'}`}>{pct(zone.occupancy,zone.capacity)>=90?'CRITICAL':pct(zone.occupancy,zone.capacity)>=75?'ELEVATED':'NORMAL'}</div></div></div>
+        <div className="card map-card"><div className="section-title"><div><div className="eyebrow">SPATIAL OPERATIONS</div><h2>Zone occupancy map</h2></div><span className="small-tag">Click a zone</span></div><TempleMap zones={state.zones} selectedZone={selectedZone} onSelect={setSelectedZone} config={templeConfig} sourceBadge={inputMode === 'simulation' ? 'SIMULATED DATA' : 'STAFF OBSERVATIONS'} onOpenSetup={() => setShowSetup(true)}/><div className="map-bottom"><div><b>{zone.label}</b><span>{zone.occupancy} / {zone.capacity} • {pct(zone.occupancy,zone.capacity)}% utilisation</span></div><div className={`severity ${pct(zone.occupancy,zone.capacity)>=90?'high':pct(zone.occupancy,zone.capacity)>=75?'medium':'low'}`}>{pct(zone.occupancy,zone.capacity)>=90?'CRITICAL':pct(zone.occupancy,zone.capacity)>=75?'ELEVATED':'NORMAL'}</div></div></div>
         <div className="card prediction-card"><div className="section-title"><div><div className="eyebrow">PREDICTIVE INTELLIGENCE</div><h2>{forecastHorizon}-minute forecast</h2></div><span className="small-tag">Deterministic model</span></div><div className="forecast-summary"><strong>{risk===null?'No breach predicted':`Threshold at T+${risk} min`}</strong><span>{risk===null?`Within the ${forecastHorizon}-minute horizon`:'Baseline forecast: ≥90% utilisation in at least one zone'}</span></div><ForecastChart baseline={forecasts.baseline} alternative={alternative} capacity={state.zones.queueA.capacity}/><div className="comparison-stats"><div><span>Baseline main queue</span><b>{forecasts.baseline.finalMainQueue}</b></div><div><span>Selected option</span><b>{alternative.finalMainQueue}</b></div><div><span>Outside backlog</span><b>{alternative.finalOutsideQueue}</b></div></div></div>
       </section>
       {inputMode === 'observations' && <section className="card action-card">
@@ -156,5 +177,6 @@ export default function App() {
       </section>
       <footer>DarshanFlow — a student hackathon simulation. Not a real-time certified crowd-safety system.</footer>
     </main>
+    <TempleSetup config={templeConfig} onChange={updateTempleConfig} isOpen={showSetup} onClose={() => setShowSetup(false)} />
   </div>
 }

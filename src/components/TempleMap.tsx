@@ -107,7 +107,7 @@ export function TempleMap({
             const z = zones[id]
             const zCfg = config.zones?.[id]
             const label = zCfg?.label || z.label
-            const capacity = zCfg?.capacity || z.capacity
+            const capacity = z.capacity
             const occupancy = z.occupancy
             const pct = capacity > 0 ? occupancy / capacity : 0
             const visuals = getThresholdVisuals(pct)
@@ -132,11 +132,14 @@ export function TempleMap({
                 }}
                 onClick={() => onSelect(id)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') onSelect(id)
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onSelect(id)
+                  }
                 }}
                 role="button"
                 tabIndex={0}
-                aria-label={`Zone ${label}, Occupancy ${occupancy} of ${capacity}`}
+                aria-label={`Zone ${label}, ${visuals.badge}, occupancy ${occupancy} of ${capacity}`}
               >
                 <div className="custom-zone-header">
                   <span className="zone-name">{label}</span>
@@ -260,7 +263,7 @@ export function TempleMap({
             const z = zones[id]
             const zCfg = config?.zones?.[id]
             const label = zCfg?.label || z.label
-            const capacity = zCfg?.capacity || z.capacity
+            const capacity = z.capacity
             const occupancy = z.occupancy
             const pct = capacity > 0 ? occupancy / capacity : 0
             const visuals = getThresholdVisuals(pct)
@@ -271,7 +274,10 @@ export function TempleMap({
                 key={id}
                 onClick={() => onSelect(id)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') onSelect(id)
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onSelect(id)
+                  }
                 }}
                 role="button"
                 tabIndex={0}
@@ -330,7 +336,7 @@ export function TempleMap({
                 <rect
                   x={r.x + 15}
                   y={r.y + r.h - 24}
-                  width={(r.w - 30) * Math.min(1, pct)}
+                  width={(r.w - 30) * Math.max(0, Math.min(1, pct))}
                   height="7"
                   rx="3.5"
                   fill={visuals.barColor}

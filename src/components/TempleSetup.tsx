@@ -129,7 +129,7 @@ export interface TempleSetupProps {
 }
 
 export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, onClose }: TempleSetupProps) {
-  const config = isValidTempleConfig(incomingConfig) ? incomingConfig : DEFAULT_TEMPLE_CONFIG
+  const config = incomingConfig
   const [activeZone, setActiveZone] = useState<ZoneId>('entry')
   const [theme, setTheme] = useState<'dark' | 'light'>(() => getStoredTheme())
   const [isDraggingOver, setIsDraggingOver] = useState(false)
