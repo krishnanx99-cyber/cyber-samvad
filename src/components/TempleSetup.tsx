@@ -91,12 +91,14 @@ export function getStoredTempleConfig(): TempleConfig {
   return DEFAULT_TEMPLE_CONFIG
 }
 
-/** Save configuration to localStorage */
-export function saveStoredTempleConfig(config: TempleConfig): void {
+/** Save configuration to localStorage; returns true if saved successfully */
+export function saveStoredTempleConfig(config: TempleConfig): boolean {
   try {
     localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(config))
+    return true
   } catch (err) {
     console.warn('Failed to save temple config to localStorage:', err)
+    return false
   }
 }
 
@@ -179,7 +181,7 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
     })
   }
 
-  // Local-only image file reader (no server upload)
+  // Local-only image file reader with auto-compression (no server upload)
   const processImageFile = (file: File) => {
     if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
       alert('Please select a valid image file (PNG, JPG, WebP).')
@@ -187,10 +189,41 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
     }
     const reader = new FileReader()
     reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        onChange({ ...config, imageDataUrl: reader.result })
+      if (typeof reader.result !== 'string') return
+      const rawDataUrl = reader.result
+      const img = new Image()
+      img.onload = () => {
+        // Limit max dimension to 1200px to ensure it easily fits within browser storage quota (< 250KB)
+        const maxDim = 1200
+        let { width, height } = img
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width)
+            width = maxDim
+          } else {
+            width = Math.round((width * maxDim) / height)
+            height = maxDim
+          }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height)
+          const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.85)
+          onChange({ ...config, imageDataUrl: optimizedDataUrl })
+          showMessage('Floor plan optimized & loaded successfully')
+        } else {
+          onChange({ ...config, imageDataUrl: rawDataUrl })
+          showMessage('Floor plan loaded successfully')
+        }
+      }
+      img.onerror = () => {
+        onChange({ ...config, imageDataUrl: rawDataUrl })
         showMessage('Floor plan loaded successfully')
       }
+      img.src = rawDataUrl
     }
     reader.readAsDataURL(file)
   }
@@ -272,8 +305,12 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
 
   // Storage & Export / Import operations
   const handleSaveToBrowser = () => {
-    saveStoredTempleConfig(config)
-    showMessage('Configuration saved to browser!')
+    const success = saveStoredTempleConfig(config)
+    if (success) {
+      showMessage('Configuration saved to browser storage!')
+    } else {
+      showMessage('⚠️ Layout saved in memory (storage quota exceeded). Use Export JSON.')
+    }
   }
 
   const handleExportJSON = () => {
@@ -556,11 +593,12 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
                       max={5000}
                       step={10}
                       value={selectedZoneConfig.capacity}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10)
                         handleZoneChange(activeZone, {
-                          capacity: Math.max(1, Number(e.target.value))
+                          capacity: isNaN(val) ? 10 : Math.min(5000, Math.max(1, val))
                         })
-                      }
+                      }}
                     />
                   </div>
                 </div>

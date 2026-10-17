@@ -148,12 +148,12 @@ export function TempleMap({
 
           {/* Calibrated Zone Overlays */}
           {zoneIds.map((id) => {
-            const z = zones[id]
+            const z = zones[id] ?? { id, label: id, occupancy: 0, capacity: 100 }
             const zCfg = config.zones?.[id]
             const label = zCfg?.label || z.label
-            const capacity = z.capacity
-            const occupancy = z.occupancy
-            const pct = capacity > 0 ? occupancy / capacity : 0
+            const capacity = z.capacity > 0 ? z.capacity : 100
+            const occupancy = Math.max(0, z.occupancy)
+            const pct = occupancy / capacity
             const visuals = getThresholdVisuals(pct)
             const isSelected = selectedZone === id
 
@@ -304,12 +304,12 @@ export function TempleMap({
           {/* Zone Nodes */}
           {zoneIds.map((id) => {
             const r = defaultRectangles[id]
-            const z = zones[id]
+            const z = zones[id] ?? { id, label: id, occupancy: 0, capacity: 100 }
             const zCfg = config?.zones?.[id]
             const label = zCfg?.label || z.label
-            const capacity = z.capacity
-            const occupancy = z.occupancy
-            const pct = capacity > 0 ? occupancy / capacity : 0
+            const capacity = z.capacity > 0 ? z.capacity : 100
+            const occupancy = Math.max(0, z.occupancy)
+            const pct = occupancy / capacity
             const visuals = getThresholdVisuals(pct)
             const isSelected = selectedZone === id
 
