@@ -21,6 +21,15 @@ def main() -> None:
         checks["simulated_badge"] = page.get_by_text("SIMULATED DATA").is_visible()
         checks["schematic_context"] = page.get_by_text("Four-zone operational flow", exact=False).is_visible()
         checks["schematic_disclaimer"] = page.get_by_text("ROUTE GEOMETRY REQUIRES", exact=False).is_visible()
+        page.get_by_role("button", name="Configure layout").click()
+        dialog = page.get_by_role("dialog")
+        checks["layout_builder_opens"] = dialog.get_by_text("Display routes", exact=True).is_visible()
+        dialog.locator("select[aria-label='Route 1 to']").select_option("queueB")
+        page.get_by_role("button", name="Apply & Return to Dashboard").click()
+        page.reload(wait_until="networkidle")
+        page.get_by_role("button", name="Configure layout").click()
+        checks["route_persists"] = page.get_by_role("dialog").locator("select[aria-label='Route 1 to']").input_value() == "queueB"
+        page.locator("button[aria-label='Close setup modal']").click()
 
         page.locator("select").nth(0).select_option("observations")
         checks["observation_badge"] = page.get_by_text("STAFF OBSERVATIONS", exact=True).is_visible()

@@ -1,4 +1,5 @@
 import type { ZoneId, Zones } from '../types'
+import { DEFAULT_MAP_ROUTES } from './TempleSetup'
 import type { TempleConfig } from './TempleSetup'
 
 export interface TempleMapProps {
@@ -18,6 +19,32 @@ const defaultRectangles: Record<ZoneId, { x: number; y: number; w: number; h: nu
 }
 
 const zoneIds: ZoneId[] = ['entry', 'queueA', 'queueB', 'darshan']
+type MapRectangle = { x: number; y: number; w: number; h: number }
+
+function getMapRectangle(id: ZoneId, config?: TempleConfig | null): MapRectangle {
+  const fallback = defaultRectangles[id]
+  const layout = config?.zones[id]
+  if (!layout) return fallback
+  return {
+    x: Math.round(layout.xPct / 100 * 670),
+    y: Math.round(layout.yPct / 100 * 354),
+    w: Math.round(layout.wPct / 100 * 670),
+    h: Math.round(layout.hPct / 100 * 354)
+  }
+}
+
+function routeAnchor(from: MapRectangle, to: MapRectangle) {
+  const dx = (to.x + to.w / 2) - (from.x + from.w / 2)
+  const dy = (to.y + to.h / 2) - (from.y + from.h / 2)
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0
+      ? { x1: from.x + from.w, y1: from.y + from.h / 2, x2: to.x, y2: to.y + to.h / 2 }
+      : { x1: from.x, y1: from.y + from.h / 2, x2: to.x + to.w, y2: to.y + to.h / 2 }
+  }
+  return dy >= 0
+    ? { x1: from.x + from.w / 2, y1: from.y + from.h, x2: to.x + to.w / 2, y2: to.y }
+    : { x1: from.x + from.w / 2, y1: from.y, x2: to.x + to.w / 2, y2: to.y + to.h }
+}
 
 function getThresholdVisuals(pct: number) {
   if (pct >= 0.90) {
@@ -55,9 +82,13 @@ export function TempleMap({
   selectedZone,
   onSelect,
   config,
-  sourceBadge = 'SIMULATED DATA'
+  sourceBadge = 'SIMULATED DATA',
+  onOpenSetup
 }: TempleMapProps) {
-  const hasCustomImage = Boolean(config?.imageDataUrl)
+  // Image calibration is intentionally deferred; the demo uses a configurable operations schematic.
+  const hasCustomImage = false
+  const mapRectangles = Object.fromEntries(zoneIds.map((id) => [id, getMapRectangle(id, config)])) as Record<ZoneId, MapRectangle>
+  const visibleRoutes = (config?.routes ?? DEFAULT_MAP_ROUTES).filter((route) => route.enabled && route.from !== route.to)
 
   return (
     <div className="temple-map-wrapper">
@@ -80,6 +111,7 @@ export function TempleMap({
           </span>
         </div>
         <div className="map-context">Four-zone operational flow • schematic view</div>
+        {onOpenSetup && <button type="button" className="map-layout-btn" onClick={onOpenSetup}>Configure layout</button>}
       </div>
 
       {/* Main View: Custom Uploaded Floor Plan OR Default SVG Schematic */}
@@ -221,94 +253,21 @@ export function TempleMap({
           <text x="25" y="27" fill="#86a7ba" fontSize="9" fontWeight="700" letterSpacing="1.6">TEMPLE OPERATIONS SCHEMATIC</text>
           <text x="645" y="27" fill="#5c8796" fontSize="8" textAnchor="end">SIMULATED FLOW</text>
 
-          {/* Subtle precincts give each monitored zone spatial context. */}
-          <rect x="18" y="55" width="190" height="268" rx="18" fill="#123244" opacity=".3" stroke="#2d6376" strokeDasharray="5 6" />
-          <rect x="210" y="55" width="246" height="222" rx="24" fill="#163a42" opacity=".28" stroke="#3a716f" strokeDasharray="5 6" />
-          <rect x="462" y="74" width="188" height="214" rx="32" fill="#243348" opacity=".34" stroke="#52687e" strokeDasharray="5 6" />
-          <text x="28" y="73" fill="#6494a9" fontSize="8" fontWeight="700" letterSpacing="1.2">ARRIVAL FORECOURT</text>
-          <text x="224" y="73" fill="#73a99a" fontSize="8" fontWeight="700" letterSpacing="1.2">QUEUE PRECINCT</text>
-          <text x="477" y="92" fill="#8ba7bf" fontSize="8" fontWeight="700" letterSpacing="1.2">DARSHAN AXIS</text>
+          <text x="25" y="48" fill="#6494a9" fontSize="8" fontWeight="700" letterSpacing="1.2">OPERATOR-DEFINED ZONE LAYOUT</text>
 
-          {/* Directional routes are intentionally visible so a judge understands flow in seconds. */}
-          <path
-            d="M 112 160 L 112 184"
-            stroke="#4f8093"
-            strokeWidth="10"
-            opacity=".22"
-            fill="none"
-          />
-          <path
-            d="M 112 160 L 112 184"
-            stroke="#86b4c7"
-            strokeWidth="3"
-            strokeDasharray="6 4"
-            markerEnd="url(#arrow)"
-            fill="none"
-          />
-          <path
-            d="M 200 100 L 224 100"
-            stroke="#4f8093"
-            strokeWidth="10"
-            opacity=".22"
-            fill="none"
-          />
-          <path
-            d="M 200 100 L 224 100"
-            stroke="#86b4c7"
-            strokeWidth="3"
-            strokeDasharray="6 4"
-            markerEnd="url(#arrow)"
-            fill="none"
-          />
-          <path
-            d="M 200 250 L 224 220"
-            stroke="#4f8093"
-            strokeWidth="10"
-            opacity=".22"
-            fill="none"
-          />
-          <path
-            d="M 200 250 L 224 220"
-            stroke="#86b4c7"
-            strokeWidth="3"
-            strokeDasharray="6 4"
-            markerEnd="url(#arrow)"
-            fill="none"
-          />
-          <path
-            d="M 446 130 L 470 130"
-            stroke="#4f8093"
-            strokeWidth="10"
-            opacity=".22"
-            fill="none"
-          />
-          <path
-            d="M 446 130 L 470 130"
-            stroke="#86b4c7"
-            strokeWidth="3"
-            strokeDasharray="6 4"
-            markerEnd="url(#arrow)"
-            fill="none"
-          />
-          <path
-            d="M 446 213 L 470 213"
-            stroke="#4f8093"
-            strokeWidth="10"
-            opacity=".22"
-            fill="none"
-          />
-          <path
-            d="M 446 213 L 470 213"
-            stroke="#86b4c7"
-            strokeWidth="3"
-            strokeDasharray="6 4"
-            markerEnd="url(#arrow)"
-            fill="none"
-          />
+          {/* Display routes follow the operator-configured zone layout. */}
+          {visibleRoutes.map((route) => {
+            const anchor = routeAnchor(mapRectangles[route.from], mapRectangles[route.to])
+            const path = `M ${anchor.x1} ${anchor.y1} L ${anchor.x2} ${anchor.y2}`
+            return <g key={route.id}>
+              <path d={path} stroke="#4f8093" strokeWidth="10" opacity=".22" fill="none" />
+              <path d={path} stroke="#86b4c7" strokeWidth="3" strokeDasharray="6 4" markerEnd="url(#arrow)" fill="none" />
+            </g>
+          })}
 
           {/* Zone Nodes */}
           {zoneIds.map((id) => {
-            const r = defaultRectangles[id]
+            const r = mapRectangles[id]
             const z = zones[id]
             const zCfg = config?.zones?.[id]
             const label = zCfg?.label || z.label

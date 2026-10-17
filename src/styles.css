@@ -1095,6 +1095,24 @@ footer {
   accent-color: var(--accent-teal);
 }
 
+.route-config-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.route-help { margin: 0; color: var(--text-secondary); font-size: 10px; line-height: 1.4; }
+.route-list { display: flex; flex-direction: column; gap: 6px; }
+.route-row { display: grid; grid-template-columns: 43px minmax(0, 1fr) 12px minmax(0, 1fr) 24px; align-items: center; gap: 5px; }
+.route-row select { min-width: 0; padding: 6px; background: var(--bg-app); border: 1px solid var(--border-color); border-radius: 5px; color: var(--text-primary); font-size: 10px; }
+.route-enabled { display: inline-flex; gap: 3px; align-items: center; color: var(--text-muted); font-size: 9px; }
+.route-enabled input { accent-color: var(--accent-teal); }
+.route-remove { border: 0; background: transparent; color: var(--text-muted); font-size: 17px; line-height: 1; padding: 2px; }
+.route-remove:hover { color: var(--accent-rose); }
+.route-add { align-self: flex-start; padding: 6px 9px; font-size: 10px; }
+
 /* Footer buttons in setup */
 .setup-actions-footer {
   margin-top: auto;
@@ -1306,12 +1324,24 @@ footer {
 }
 
 .map-context {
-  margin-left: auto;
   color: var(--text-muted);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: .2px;
 }
+
+.map-layout-btn {
+  margin-left: auto;
+  padding: 5px 9px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-card-alt);
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.map-layout-btn:hover { border-color: var(--accent-teal); color: var(--accent-teal); }
 
 .legend-item {
   display: inline-flex;
