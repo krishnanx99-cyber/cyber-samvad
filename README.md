@@ -6,6 +6,8 @@
 
 ```bash
 npm install
+npm run test:engine
+npm run test:observations
 npm run dev
 ```
 
@@ -38,14 +40,15 @@ Open the local URL reported by Vite (usually http://localhost:5173).
 
 1. Scenario select reset to `normal`, `surge`, or `festival` and render zones.
 2. `+1 min` changes simulated occupancy; `Play` runs and `Pause` stops.
-3. Forecast displays a 10-minute baseline and selected intervention.
+3. Forecast displays selectable 5-, 10-, and 15-minute baseline/intervention comparisons.
 4. For metering, outside backlog is disclosed, never hidden.
 5. Staffed lane doesn't create visitors or allow any zone over its configured capacity.
 6. Applying a simulated action updates subsequent ticks and adds an audit entry.
 7. Changing arrival-rate slider changes forecast.
-8. Responsive enough to demo on a laptop; no failed imports or TypeScript errors.
-9. `npm run build` succeeds.
-10. Pitch includes limitations: synthetic inputs, uncalibrated models, real interventions only by authorised staff.
+8. Observation mode pauses simulation, accepts source-labelled crossings and staff corrections, rejects malformed input, and shows overload rather than clamping it.
+9. Responsive enough to demo on a laptop; no failed imports or TypeScript errors.
+10. `npm run build` succeeds.
+11. Pitch includes limitations: synthetic inputs, uncalibrated models, real interventions only by authorised staff.
 
 ## Avoid scope creep
 
