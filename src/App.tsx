@@ -87,6 +87,10 @@ export default function App() {
     })
   }
   const recordCorrection = () => {
+    if (!correctionCount.trim()) {
+      setAudit(prev => ['Observation rejected: enter a numeric zone count', ...prev].slice(0,8))
+      return
+    }
     const accepted = recordObservation({
       id: nextObservationId('correction'),
       kind: 'correction',
