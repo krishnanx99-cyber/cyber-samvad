@@ -8,8 +8,19 @@ export interface ForecastChartProps {
 }
 
 export function ForecastChart({ baseline, alternative, capacity }: ForecastChartProps) {
-  const baseSnapshots = baseline.snapshots
-  const altSnapshots = alternative.snapshots
+  const baseSnapshots = baseline?.snapshots ?? []
+  const altSnapshots = alternative?.snapshots ?? []
+
+  if (baseSnapshots.length === 0 || altSnapshots.length === 0) {
+    return (
+      <div className="forecast-chart-container">
+        <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <span>Generating forecast projections...</span>
+        </div>
+      </div>
+    )
+  }
+
   const baseVals = baseSnapshots.map((s) => s.occupancy.queueA)
   const altVals = altSnapshots.map((s) => s.occupancy.queueA)
 

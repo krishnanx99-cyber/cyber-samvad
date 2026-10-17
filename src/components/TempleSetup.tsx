@@ -78,10 +78,32 @@ export function isValidTempleConfig(value: unknown): value is TempleConfig {
   })
 }
 
-/** Retrieve saved configuration from localStorage, or return default */
+// Safe in-memory fallback for environments where localStorage is blocked or quota is exceeded
+const memoryStorage = new Map<string, string>()
+
+function safeGetStorage(key: string): string | null {
+  try {
+    return localStorage.getItem(key) ?? memoryStorage.get(key) ?? null
+  } catch {
+    return memoryStorage.get(key) ?? null
+  }
+}
+
+function safeSetStorage(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value)
+    memoryStorage.set(key, value)
+    return true
+  } catch {
+    memoryStorage.set(key, value)
+    return false
+  }
+}
+
+/** Retrieve saved configuration from localStorage/memory, or return default */
 export function getStoredTempleConfig(): TempleConfig {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_CONFIG)
+    const raw = safeGetStorage(STORAGE_KEY_CONFIG)
     if (!raw) return DEFAULT_TEMPLE_CONFIG
     const parsed: unknown = JSON.parse(raw)
     if (isValidTempleConfig(parsed)) return parsed
@@ -91,13 +113,12 @@ export function getStoredTempleConfig(): TempleConfig {
   return DEFAULT_TEMPLE_CONFIG
 }
 
-/** Save configuration to localStorage; returns true if saved successfully */
+/** Save configuration to storage; returns true if saved successfully */
 export function saveStoredTempleConfig(config: TempleConfig): boolean {
   try {
-    localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(config))
-    return true
+    return safeSetStorage(STORAGE_KEY_CONFIG, JSON.stringify(config))
   } catch (err) {
-    console.warn('Failed to save temple config to localStorage:', err)
+    console.warn('Failed to save temple config:', err)
     return false
   }
 }
@@ -105,7 +126,7 @@ export function saveStoredTempleConfig(config: TempleConfig): boolean {
 /** Get theme from localStorage, defaulting to 'dark' */
 export function getStoredTheme(): 'dark' | 'light' {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY_THEME)
+    const saved = safeGetStorage(STORAGE_KEY_THEME)
     if (saved === 'light' || saved === 'dark') return saved
   } catch {
     // fallback
@@ -117,7 +138,7 @@ export function getStoredTheme(): 'dark' | 'light' {
 export function applyAppTheme(theme: 'dark' | 'light'): void {
   try {
     document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem(STORAGE_KEY_THEME, theme)
+    safeSetStorage(STORAGE_KEY_THEME, theme)
   } catch (err) {
     console.warn('Failed to apply theme:', err)
   }
@@ -171,12 +192,40 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
     onChange({ ...config, templeName: e.target.value })
   }
 
+  // Strictly boundary-clamped zone update to eliminate overflow bugs
   const handleZoneChange = (zoneId: ZoneId, patch: Partial<ZoneConfig>) => {
+    const current = config.zones[zoneId]
+    let nextW = patch.wPct !== undefined ? Math.max(MIN_ZONE_SIZE_PCT, Math.min(100, Math.round(patch.wPct))) : current.wPct
+    let nextH = patch.hPct !== undefined ? Math.max(MIN_ZONE_SIZE_PCT, Math.min(100, Math.round(patch.hPct))) : current.hPct
+    let nextX = patch.xPct !== undefined ? Math.round(patch.xPct) : current.xPct
+    let nextY = patch.yPct !== undefined ? Math.round(patch.yPct) : current.yPct
+
+    // Adjust position automatically if width or height pushes past canvas edge
+    if (nextX + nextW > 100) nextX = Math.max(0, 100 - nextW)
+    if (nextY + nextH > 100) nextY = Math.max(0, 100 - nextH)
+
+    nextX = Math.max(0, Math.min(100 - nextW, nextX))
+    nextY = Math.max(0, Math.min(100 - nextH, nextY))
+
+    const safeCapacity = patch.capacity !== undefined
+      ? Math.max(1, Math.min(MAX_ZONE_CAPACITY, patch.capacity))
+      : current.capacity
+
+    const safeLabel = patch.label !== undefined ? patch.label : current.label
+
     onChange({
       ...config,
       zones: {
         ...config.zones,
-        [zoneId]: { ...config.zones[zoneId], ...patch }
+        [zoneId]: {
+          ...current,
+          xPct: nextX,
+          yPct: nextY,
+          wPct: nextW,
+          hPct: nextH,
+          capacity: safeCapacity,
+          label: safeLabel
+        }
       }
     })
   }
