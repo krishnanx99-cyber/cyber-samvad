@@ -1,5 +1,7 @@
+/* OWNER: DEVELOPER B. Temple Map component with custom floor-plan support and schematic fallback. */
+import { useState, useEffect } from 'react'
 import type { ZoneId, Zones } from '../types'
-import type { TempleConfig } from './TempleSetup'
+import { getStoredTheme, applyAppTheme, type TempleConfig } from './TempleSetup'
 
 export interface TempleMapProps {
   zones: Zones
@@ -58,7 +60,18 @@ export function TempleMap({
   sourceBadge = 'SIMULATED DATA',
   onOpenSetup
 }: TempleMapProps) {
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => getStoredTheme())
   const hasCustomImage = Boolean(config?.imageDataUrl)
+
+  useEffect(() => {
+    applyAppTheme(theme)
+  }, [theme])
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(nextTheme)
+    applyAppTheme(nextTheme)
+  }
 
   return (
     <div className="temple-map-wrapper">
@@ -81,17 +94,48 @@ export function TempleMap({
           </span>
         </div>
 
-        {onOpenSetup && (
+        <div className="map-actions-group">
+          {/* Quick theme switcher button */}
           <button
             type="button"
-            className="map-setup-btn"
-            onClick={onOpenSetup}
-            title="Configure floor plan and zone positions"
+            className="theme-switch-btn"
+            onClick={toggleTheme}
+            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} theme`}
+            aria-label="Toggle dark/light theme"
           >
-            ⚙ Calibrate Map
+            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
           </button>
-        )}
+
+          {/* Prominent Setup / Calibration button */}
+          {onOpenSetup && (
+            <button
+              type="button"
+              className="map-setup-btn primary"
+              onClick={onOpenSetup}
+              title="Upload floor plan and calibrate 4 demo zones"
+            >
+              ⚙ Calibrate Map
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Prominent Action Banner for Floor Plan Setup */}
+      {onOpenSetup && !hasCustomImage && (
+        <div className="map-blueprint-callout">
+          <div className="blueprint-callout-text">
+            <strong>📐 Default Schematic Grid Active</strong>
+            <span>Upload an architectural PNG/JPG floor plan to calibrate the 4 zones interactively.</span>
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary callout-btn"
+            onClick={onOpenSetup}
+          >
+            📁 Upload Floor Plan
+          </button>
+        </div>
+      )}
 
       {/* Main View: Custom Uploaded Floor Plan OR Default SVG Schematic */}
       {hasCustomImage && config?.imageDataUrl ? (

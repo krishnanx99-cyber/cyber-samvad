@@ -135,7 +135,37 @@ export default function App() {
       <div className="sidebar-foot"><span className="status-pulse"/> Synthetic simulation<br/><small>No personal data. No real routing.</small></div>
     </aside>
     <main className="main">
-      <header className="topbar"><div><div className="eyebrow">CYBER SAMVAD 2026 • PS5</div><h1>Crowd Command Center</h1><p>Predict crowd pressure. Compare interventions. Keep humans in control.</p></div><span className="demo-pill">● {inputMode === 'simulation' ? 'SIMULATED INPUT' : 'STAFF OBSERVATIONS'}</span></header>
+      <header className="topbar">
+        <div>
+          <div className="eyebrow">CYBER SAMVAD 2026 • PS5</div>
+          <h1>Crowd Command Center</h1>
+          <p>Predict crowd pressure. Compare interventions. Keep humans in control.</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="theme-switch-btn"
+            onClick={() => {
+              const current = document.documentElement.getAttribute('data-theme') || 'dark'
+              const next = current === 'dark' ? 'light' : 'dark'
+              document.documentElement.setAttribute('data-theme', next)
+              localStorage.setItem('darshanflow_theme', next)
+            }}
+            title="Toggle Dark / Light Theme"
+          >
+            🌓 Toggle Theme
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ padding: '8px 14px', borderRadius: '8px', fontWeight: 800 }}
+            onClick={() => setShowSetup(true)}
+          >
+            ⚙ Calibrate Floor Plan
+          </button>
+          <span className="demo-pill">● {inputMode === 'simulation' ? 'SIMULATED INPUT' : 'STAFF OBSERVATIONS'}</span>
+        </div>
+      </header>
       <section className="toolbar card">
         <label>Input source<select value={inputMode} onChange={e => setMode(e.target.value as InputMode)}><option value="simulation">Simulation</option><option value="observations">Observations</option></select></label>
         <label>Demo scenario<select value={state.scenario} onChange={e => reset(e.target.value as ScenarioId)}>{Object.entries(SCENARIOS).map(([id,s]) => <option key={id} value={id}>{s.label}</option>)}</select></label>
