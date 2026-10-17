@@ -27,12 +27,19 @@ export function snapshotOf(state: Pick<SimulationState, 'minute' | 'zones' | 'ou
   }
 }
 
+const INITIAL_OCCUPANCIES: Record<ScenarioId, { entry: number; queueA: number; queueB: number; darshan: number }> = {
+  normal:  { entry: 18, queueA: 80,  queueB: 0, darshan: 28 }, // calm — queues well below capacity
+  surge:   { entry: 48, queueA: 234, queueB: 0, darshan: 42 }, // mid-pressure — primary queue ~73%
+  festival:{ entry: 90, queueA: 290, queueB: 0, darshan: 80 }, // high-pressure — most zones near threshold
+}
+
 export function createInitialState(scenario: ScenarioId = 'surge'): SimulationState {
+  const occ = INITIAL_OCCUPANCIES[scenario]
   const zones: Zones = {
-    entry: { id: 'entry', label: 'Entry / screening', occupancy: 48, capacity: 130 },
-    queueA: { id: 'queueA', label: 'Primary queue', occupancy: 234, capacity: 320 },
-    queueB: { id: 'queueB', label: 'Staffed overflow lane', occupancy: 0, capacity: 170 },
-    darshan: { id: 'darshan', label: 'Darshan corridor', occupancy: 42, capacity: 110 }
+    entry: { id: 'entry', label: 'Entry / screening', occupancy: occ.entry, capacity: 130 },
+    queueA: { id: 'queueA', label: 'Primary queue', occupancy: occ.queueA, capacity: 320 },
+    queueB: { id: 'queueB', label: 'Staffed overflow lane', occupancy: occ.queueB, capacity: 170 },
+    darshan: { id: 'darshan', label: 'Darshan corridor', occupancy: occ.darshan, capacity: 110 }
   }
   const state: SimulationState = {
     minute: 0, scenario, intervention: 'none',

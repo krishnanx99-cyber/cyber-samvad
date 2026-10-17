@@ -31,9 +31,12 @@ export default function App() {
   }, [running])
   const reset = (scenario:ScenarioId) => {setRunning(false);setState(createInitialState(scenario));setAudit([`Simulation reset: ${SCENARIOS[scenario].label}`])}
   const apply = (intervention:InterventionId) => {
-    setState(prev => ({ ...prev, intervention }))
     const label = interventions.find(i => i.id===intervention)?.title ?? intervention
-    setAudit(prev => [`Minute ${state.minute}: Operator selected ${label}`, ...prev].slice(0,8))
+    setState(prev => {
+      // Read minute from prev to avoid stale closure when Play is running
+      setAudit(a => [`Minute ${prev.minute}: Operator selected ${label}`, ...a].slice(0,8))
+      return { ...prev, intervention }
+    })
   }
   return <div className="app-shell">
     <aside className="sidebar">
