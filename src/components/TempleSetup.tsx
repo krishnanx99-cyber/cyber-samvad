@@ -12,11 +12,29 @@ export interface ZoneConfig {
   hPct: number // 5 to 100 percentage
 }
 
+/** A display-only connection in the temple operations schematic. */
+export interface MapRoute {
+  id: string
+  from: ZoneId
+  to: ZoneId
+  enabled: boolean
+}
+
 export interface TempleConfig {
   templeName: string
   imageDataUrl?: string | null
+  /** Original uploaded-image width ÷ height; keeps editor and dashboard aligned. */
+  imageAspectRatio?: number
+  routes?: MapRoute[]
   zones: Record<ZoneId, ZoneConfig>
 }
+
+export const DEFAULT_MAP_ROUTES: MapRoute[] = [
+  { id: 'entry-queue-a', from: 'entry', to: 'queueA', enabled: true },
+  { id: 'entry-queue-b', from: 'entry', to: 'queueB', enabled: true },
+  { id: 'queue-a-darshan', from: 'queueA', to: 'darshan', enabled: true },
+  { id: 'queue-b-darshan', from: 'queueB', to: 'darshan', enabled: true }
+]
 
 export const ZONE_ACCENTS: Record<ZoneId, { border: string; bg: string; text: string; badge: string }> = {
   entry: { border: '#38bdf8', bg: 'rgba(56, 189, 248, 0.22)', text: '#38bdf8', badge: '#0369a1' },
@@ -28,6 +46,7 @@ export const ZONE_ACCENTS: Record<ZoneId, { border: string; bg: string; text: st
 export const DEFAULT_TEMPLE_CONFIG: TempleConfig = {
   templeName: 'Somnath Temple Complex',
   imageDataUrl: null,
+  routes: DEFAULT_MAP_ROUTES,
   zones: {
     entry: { id: 'entry', label: 'Main Entry Gate', capacity: 150, xPct: 5, yPct: 15, wPct: 26, hPct: 35 },
     queueA: { id: 'queueA', label: 'Queue Complex A', capacity: 350, xPct: 35, yPct: 15, wPct: 32, hPct: 50 },
@@ -38,7 +57,6 @@ export const DEFAULT_TEMPLE_CONFIG: TempleConfig = {
 
 const STORAGE_KEY_CONFIG = 'darshanflow_temple_config'
 const STORAGE_KEY_THEME = 'darshanflow_theme'
-const ALLOWED_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp'])
 const MIN_ZONE_SIZE_PCT = 10
 const MAX_ZONE_CAPACITY = 5000
 
@@ -51,6 +69,21 @@ export function isValidTempleConfig(value: unknown): value is TempleConfig {
   if (candidate.imageDataUrl !== undefined && candidate.imageDataUrl !== null && typeof candidate.imageDataUrl !== 'string') {
     return false
   }
+  if (candidate.imageAspectRatio !== undefined
+    && (typeof candidate.imageAspectRatio !== 'number'
+      || !Number.isFinite(candidate.imageAspectRatio)
+      || candidate.imageAspectRatio < 0.25
+      || candidate.imageAspectRatio > 4)) {
+    return false
+  }
+  if (candidate.routes !== undefined && (!Array.isArray(candidate.routes) || !candidate.routes.every((route) => {
+    return route
+      && typeof route.id === 'string'
+      && ZONE_IDS.includes(route.from)
+      && ZONE_IDS.includes(route.to)
+      && route.from !== route.to
+      && typeof route.enabled === 'boolean'
+  }))) return false
   if (!candidate.zones || typeof candidate.zones !== 'object' || Array.isArray(candidate.zones)) return false
 
   return ZONE_IDS.every((zoneId) => {
@@ -106,7 +139,12 @@ export function getStoredTempleConfig(): TempleConfig {
     const raw = safeGetStorage(STORAGE_KEY_CONFIG)
     if (!raw) return DEFAULT_TEMPLE_CONFIG
     const parsed: unknown = JSON.parse(raw)
-    if (isValidTempleConfig(parsed)) return parsed
+    if (isValidTempleConfig(parsed)) {
+      return {
+        ...parsed,
+        routes: parsed.routes?.length ? parsed.routes : DEFAULT_MAP_ROUTES.map((route) => ({ ...route }))
+      }
+    }
   } catch {
     // fallback if corrupted
   }
@@ -155,11 +193,10 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
   const config = incomingConfig
   const [activeZone, setActiveZone] = useState<ZoneId>('entry')
   const [theme, setTheme] = useState<'dark' | 'light'>(() => getStoredTheme())
-  const [isDraggingOver, setIsDraggingOver] = useState(false)
+  const isDraggingOver = false
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
 
   const containerRef = useRef<HTMLDivElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const dragRef = useRef<{
     zoneId: ZoneId
     mode: 'move' | 'resize'
@@ -230,69 +267,16 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
     })
   }
 
-  // Local-only image file reader with auto-compression (no server upload)
-  const processImageFile = (file: File) => {
-    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
-      alert('Please select a valid image file (PNG, JPG, WebP).')
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result !== 'string') return
-      const rawDataUrl = reader.result
-      const img = new Image()
-      img.onload = () => {
-        // Limit max dimension to 1200px to ensure it easily fits within browser storage quota (< 250KB)
-        const maxDim = 1200
-        let { width, height } = img
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width)
-            width = maxDim
-          } else {
-            width = Math.round((width * maxDim) / height)
-            height = maxDim
-          }
-        }
-        const canvas = document.createElement('canvas')
-        canvas.width = width
-        canvas.height = height
-        const ctx = canvas.getContext('2d')
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height)
-          const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.85)
-          onChange({ ...config, imageDataUrl: optimizedDataUrl })
-          showMessage('Floor plan optimized & loaded successfully')
-        } else {
-          onChange({ ...config, imageDataUrl: rawDataUrl })
-          showMessage('Floor plan loaded successfully')
-        }
-      }
-      img.onerror = () => {
-        onChange({ ...config, imageDataUrl: rawDataUrl })
-        showMessage('Floor plan loaded successfully')
-      }
-      img.src = rawDataUrl
-    }
-    reader.readAsDataURL(file)
+  const routes = config.routes ?? DEFAULT_MAP_ROUTES
+  const handleRouteChange = (index: number, patch: Partial<MapRoute>) => {
+    onChange({ ...config, routes: routes.map((route, routeIndex) => routeIndex === index ? { ...route, ...patch } : route) })
   }
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) processImageFile(file)
+  const addRoute = () => {
+    if (routes.length >= 6) return showMessage('Keep the demo map to six routes or fewer for readability.')
+    onChange({ ...config, routes: [...routes, { id: `route-${Date.now()}`, from: 'entry', to: 'queueA', enabled: true }] })
   }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDraggingOver(false)
-    const file = e.dataTransfer.files?.[0]
-    if (file) processImageFile(file)
-  }
-
-  const clearImage = () => {
-    onChange({ ...config, imageDataUrl: null })
-    if (fileInputRef.current) fileInputRef.current.value = ''
-    showMessage('Floor plan removed. Using default schematic.')
+  const removeRoute = (index: number) => {
+    onChange({ ...config, routes: routes.filter((_, routeIndex) => routeIndex !== index) })
   }
 
   // Interactive mouse / pointer dragging for boxes and resize handles
@@ -362,6 +346,12 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
     }
   }
 
+  const handleApplyAndClose = () => {
+    saveStoredTempleConfig(config)
+    showMessage('Calibration saved to this browser')
+    onClose?.()
+  }
+
   const handleExportJSON = () => {
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(config, null, 2))
     const dlAnchor = document.createElement('a')
@@ -411,7 +401,7 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
         <div className="setup-header">
           <div className="setup-title-box">
             <span className="eyebrow">DEVELOPER B • SPATIAL CONFIGURATION</span>
-            <h2 id="temple-setup-title">Temple Floor Plan & Zone Calibration</h2>
+            <h2 id="temple-setup-title">Operations Layout Builder</h2>
           </div>
           <div className="setup-header-actions">
             {/* Light / Dark theme toggle */}
@@ -445,13 +435,11 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
 
         {/* Content Body */}
         <div className="setup-body">
-          {/* Left Column: Visual Canvas & Overlay Calibration */}
+          {/* Left Column: Visual Canvas & Overlay Layout */}
           <div className="setup-canvas-col">
             <div className="setup-canvas-bar">
               <span className="canvas-hint">
-                {config.imageDataUrl
-                  ? '📷 Custom Floor Plan Active • Click & Drag zones or use handles to align'
-                  : '📐 Default Schematic Grid • Upload a PNG/JPG floor plan below'}
+                🧭 Move each zone to match this temple's operational flow
               </span>
               <span className="badge-pill">4 Fixed Zones</span>
             </div>
@@ -459,30 +447,16 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
             <div
               ref={containerRef}
               className={`setup-canvas-container ${isDraggingOver ? 'dragging-over' : ''}`}
+              style={{ aspectRatio: 16 / 9 }}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
-              onDragOver={(e) => {
-                e.preventDefault()
-                setIsDraggingOver(true)
-              }}
-              onDragLeave={() => setIsDraggingOver(false)}
-              onDrop={handleDrop}
             >
-              {config.imageDataUrl ? (
-                <img
-                  src={config.imageDataUrl}
-                  alt="Temple Floor Plan"
-                  className="setup-background-img"
-                  draggable={false}
-                />
-              ) : (
-                <div className="setup-schematic-bg">
-                  <div className="schematic-watermark">
-                    <span>SCHEMATIC GRID</span>
-                    <small>Upload temple floor plan or architectural layout image</small>
-                  </div>
+              <div className="setup-schematic-bg">
+                <div className="schematic-watermark">
+                  <span>OPERATIONS LAYOUT</span>
+                  <small>Drag zones to show local crowd movement. Routes are configured on the right.</small>
                 </div>
-              )}
+              </div>
 
               {/* 4 Interactive Zone Overlays */}
               {zoneIds.map((id) => {
@@ -537,32 +511,10 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
               })}
             </div>
 
-            {/* Quick Upload / Manage Image */}
+            {/* Clear operational guidance */}
             <div className="setup-upload-toolbar">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/png, image/jpeg, image/webp"
-                style={{ display: 'none' }}
-                onChange={handleFileInput}
-              />
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                📁 Upload Floor Plan (PNG/JPG)
-              </button>
-              {config.imageDataUrl && (
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  onClick={clearImage}
-                >
-                  ↺ Revert to Default Schematic
-                </button>
-              )}
-              <span className="privacy-note">Local-only processing. No data uploaded to external servers.</span>
+              <span className="privacy-note">1. Drag or resize the four monitored zones  2. Define display routes  3. Apply &amp; Return</span>
+              <span className="privacy-note">Layout routes explain the demo map; they do not automatically change real-world routing or simulation rules.</span>
             </div>
           </div>
 
@@ -714,6 +666,30 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
                     />
                   </div>
                 </div>
+
+                <div className="route-config-panel">
+                  <div className="panel-title">
+                    <span className="zone-indicator-dot" style={{ background: '#86b4c7' }} />
+                    <strong>Display routes</strong>
+                  </div>
+                  <p className="route-help">Show the routes people normally take between the monitored zones.</p>
+                  <div className="route-list">
+                    {routes.map((route, index) => (
+                      <div className="route-row" key={route.id}>
+                        <label className="route-enabled"><input type="checkbox" checked={route.enabled} onChange={(event) => handleRouteChange(index, { enabled: event.target.checked })} /> show</label>
+                        <select value={route.from} onChange={(event) => handleRouteChange(index, { from: event.target.value as ZoneId })} aria-label={`Route ${index + 1} from`}>
+                          {zoneIds.map((id) => <option key={id} value={id}>{config.zones[id].label}</option>)}
+                        </select>
+                        <span>→</span>
+                        <select value={route.to} onChange={(event) => handleRouteChange(index, { to: event.target.value as ZoneId })} aria-label={`Route ${index + 1} to`}>
+                          {zoneIds.filter((id) => id !== route.from).map((id) => <option key={id} value={id}>{config.zones[id].label}</option>)}
+                        </select>
+                        <button type="button" className="route-remove" onClick={() => removeRoute(index)} aria-label={`Remove route ${index + 1}`}>×</button>
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" className="btn btn-outline route-add" onClick={addRoute}>+ Add display route</button>
+                </div>
               </div>
             )}
 
@@ -757,7 +733,7 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
                   type="button"
                   className="btn btn-primary btn-block"
                   style={{ marginTop: '12px' }}
-                  onClick={onClose}
+                  onClick={handleApplyAndClose}
                 >
                   Apply & Return to Dashboard
                 </button>

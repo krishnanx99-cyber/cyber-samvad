@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test:engine": "node scripts/test-engine.cjs",
     "test:observations": "node scripts/test-observations.cjs",
+    "test:forecast": "node scripts/test-forecast.cjs",
     "test:components": "node scripts/test-b-components.cjs"
   },
   "dependencies": {

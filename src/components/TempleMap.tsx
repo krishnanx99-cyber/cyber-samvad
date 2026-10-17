@@ -1,7 +1,7 @@
 /* OWNER: DEVELOPER B. Temple Map component with custom floor-plan support and schematic fallback. */
 import { useState, useEffect } from 'react'
 import type { ZoneId, Zones } from '../types'
-import { getStoredTheme, applyAppTheme, type TempleConfig } from './TempleSetup'
+import { DEFAULT_MAP_ROUTES, getStoredTheme, applyAppTheme, type TempleConfig } from './TempleSetup'
 
 export interface TempleMapProps {
   zones: Zones
@@ -20,6 +20,32 @@ const defaultRectangles: Record<ZoneId, { x: number; y: number; w: number; h: nu
 }
 
 const zoneIds: ZoneId[] = ['entry', 'queueA', 'queueB', 'darshan']
+type MapRectangle = { x: number; y: number; w: number; h: number }
+
+function getMapRectangle(id: ZoneId, config?: TempleConfig | null): MapRectangle {
+  const fallback = defaultRectangles[id]
+  const layout = config?.zones[id]
+  if (!layout) return fallback
+  return {
+    x: Math.round(layout.xPct / 100 * 670),
+    y: Math.round(layout.yPct / 100 * 354),
+    w: Math.round(layout.wPct / 100 * 670),
+    h: Math.round(layout.hPct / 100 * 354)
+  }
+}
+
+function routeAnchor(from: MapRectangle, to: MapRectangle) {
+  const dx = (to.x + to.w / 2) - (from.x + from.w / 2)
+  const dy = (to.y + to.h / 2) - (from.y + from.h / 2)
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0
+      ? { x1: from.x + from.w, y1: from.y + from.h / 2, x2: to.x, y2: to.y + to.h / 2 }
+      : { x1: from.x, y1: from.y + from.h / 2, x2: to.x + to.w, y2: to.y + to.h / 2 }
+  }
+  return dy >= 0
+    ? { x1: from.x + from.w / 2, y1: from.y + from.h, x2: to.x + to.w / 2, y2: to.y }
+    : { x1: from.x + from.w / 2, y1: from.y, x2: to.x + to.w / 2, y2: to.y + to.h }
+}
 
 function getThresholdVisuals(pct: number) {
   if (pct >= 0.90) {
@@ -62,6 +88,8 @@ export function TempleMap({
 }: TempleMapProps) {
   const [theme, setTheme] = useState<'dark' | 'light'>(() => getStoredTheme())
   const hasCustomImage = Boolean(config?.imageDataUrl)
+  const mapRectangles = Object.fromEntries(zoneIds.map((id) => [id, getMapRectangle(id, config)])) as Record<ZoneId, MapRectangle>
+  const visibleRoutes = (config?.routes ?? DEFAULT_MAP_ROUTES).filter((route) => route.enabled && route.from !== route.to)
 
   useEffect(() => {
     applyAppTheme(theme)
@@ -94,6 +122,8 @@ export function TempleMap({
           </span>
         </div>
 
+        <div className="map-context">Four-zone operational flow • schematic view</div>
+
         <div className="map-actions-group">
           {/* Quick theme switcher button */}
           <button
@@ -106,40 +136,43 @@ export function TempleMap({
             {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
           </button>
 
-          {/* Prominent Setup / Calibration button */}
+          {/* Setup / Calibration button */}
           {onOpenSetup && (
             <button
               type="button"
-              className="map-setup-btn primary"
+              className="map-layout-btn map-setup-btn primary"
               onClick={onOpenSetup}
-              title="Upload floor plan and calibrate 4 demo zones"
+              title="Configure layout and routes"
             >
-              ⚙ Calibrate Map
+              Configure layout
             </button>
           )}
         </div>
       </div>
 
-      {/* Prominent Action Banner for Floor Plan Setup */}
+      {/* Prominent Action Banner for Layout Calibration */}
       {onOpenSetup && !hasCustomImage && (
         <div className="map-blueprint-callout">
           <div className="blueprint-callout-text">
             <strong>📐 Default Schematic Grid Active</strong>
-            <span>Upload an architectural PNG/JPG floor plan to calibrate the 4 zones interactively.</span>
+            <span>Configure zone positioning, labels, capacities, and display routes interactively.</span>
           </div>
           <button
             type="button"
             className="btn btn-secondary callout-btn"
             onClick={onOpenSetup}
           >
-            📁 Upload Floor Plan
+            ⚙ Configure Layout
           </button>
         </div>
       )}
 
       {/* Main View: Custom Uploaded Floor Plan OR Default SVG Schematic */}
       {hasCustomImage && config?.imageDataUrl ? (
-        <div className="custom-map-viewport">
+        <div
+          className="custom-map-viewport"
+          style={{ aspectRatio: config.imageAspectRatio ?? 16 / 9 }}
+        >
           <img
             src={config.imageDataUrl}
             alt={config.templeName || 'Temple Floor Plan'}
@@ -255,55 +288,39 @@ export function TempleMap({
             </marker>
           </defs>
 
-          {/* Grid background */}
-          <rect width="670" height="354" fill="#111c2a" rx="12" />
-          <rect width="670" height="354" fill="url(#mapgrid)" rx="12" />
+          <linearGradient id="mapSurface" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#14283a" />
+            <stop offset="55%" stopColor="#0e1b2a" />
+            <stop offset="100%" stopColor="#09131f" />
+          </linearGradient>
+          <filter id="nodeGlow" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
 
-          {/* Directional Flow Pathways */}
-          <path
-            d="M 112 160 L 112 184"
-            stroke="#6f8da4"
-            strokeWidth="3"
-            strokeDasharray="6 4"
-            markerEnd="url(#arrow)"
-            fill="none"
-          />
-          <path
-            d="M 200 100 L 224 100"
-            stroke="#6f8da4"
-            strokeWidth="3"
-            strokeDasharray="6 4"
-            markerEnd="url(#arrow)"
-            fill="none"
-          />
-          <path
-            d="M 200 250 L 224 220"
-            stroke="#6f8da4"
-            strokeWidth="3"
-            strokeDasharray="6 4"
-            markerEnd="url(#arrow)"
-            fill="none"
-          />
-          <path
-            d="M 446 130 L 470 130"
-            stroke="#6f8da4"
-            strokeWidth="3"
-            strokeDasharray="6 4"
-            markerEnd="url(#arrow)"
-            fill="none"
-          />
-          <path
-            d="M 446 213 L 470 213"
-            stroke="#6f8da4"
-            strokeWidth="3"
-            strokeDasharray="6 4"
-            markerEnd="url(#arrow)"
-            fill="none"
-          />
+          {/* Schematic site envelope */}
+          <rect width="670" height="354" fill="url(#mapSurface)" rx="12" />
+          <rect width="670" height="354" fill="url(#mapgrid)" rx="12" />
+          <rect x="11" y="11" width="648" height="332" rx="10" fill="none" stroke="#38536a" strokeWidth="1" />
+          <path d="M23 34 H646" stroke="#2f5268" strokeWidth="1" strokeDasharray="2 8" />
+          <text x="25" y="27" fill="#86a7ba" fontSize="9" fontWeight="700" letterSpacing="1.6">TEMPLE OPERATIONS SCHEMATIC</text>
+          <text x="645" y="27" fill="#5c8796" fontSize="8" textAnchor="end">SIMULATED FLOW</text>
+
+          <text x="25" y="48" fill="#6494a9" fontSize="8" fontWeight="700" letterSpacing="1.2">OPERATOR-DEFINED ZONE LAYOUT</text>
+
+          {/* Display routes follow the operator-configured zone layout */}
+          {visibleRoutes.map((route) => {
+            const anchor = routeAnchor(mapRectangles[route.from], mapRectangles[route.to])
+            const path = `M ${anchor.x1} ${anchor.y1} L ${anchor.x2} ${anchor.y2}`
+            return <g key={route.id}>
+              <path d={path} stroke="#4f8093" strokeWidth="10" opacity=".22" fill="none" />
+              <path d={path} stroke="#86b4c7" strokeWidth="3" strokeDasharray="6 4" markerEnd="url(#arrow)" fill="none" />
+            </g>
+          })}
 
           {/* Zone Nodes */}
           {zoneIds.map((id) => {
-            const r = defaultRectangles[id]
+            const r = mapRectangles[id]
             const z = zones[id] ?? { id, label: id, occupancy: 0, capacity: 100 }
             const zCfg = config?.zones?.[id]
             const label = zCfg?.label || z.label
@@ -337,6 +354,7 @@ export function TempleMap({
                   fill={visuals.fill}
                   stroke={isSelected ? '#ffffff' : visuals.border}
                   strokeWidth={isSelected ? 3.5 : 1.2}
+                  filter={isSelected ? 'url(#nodeGlow)' : undefined}
                 />
                 {/* Zone Label */}
                 <text
@@ -389,9 +407,8 @@ export function TempleMap({
             )
           })}
 
-          {/* Watermark disclaimer */}
-          <text x="25" y="340" fontSize="11" fill="#adc2d0">
-            SIMULATED COUNTS • schematic layout, not real navigation
+          <text x="25" y="333" fontSize="10" fill="#8eacbb">
+            SIMULATED OPERATIONS LAYOUT • ROUTE GEOMETRY REQUIRES ON-SITE VALIDATION
           </text>
         </svg>
       )}
