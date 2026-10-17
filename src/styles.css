@@ -1544,3 +1544,50 @@ footer {
   font-weight: 800;
   padding: 6px 12px;
 }
+
+/* =========================================================
+   TASK 3: FORECAST CHART STYLING & ACCESSIBILITY
+   ========================================================= */
+.forecast-chart-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.chart-dot {
+  transition: r 0.15s ease, filter 0.15s ease;
+  cursor: pointer;
+}
+
+.chart-dot:hover {
+  r: 6px;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4));
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.legend-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-entry strong {
+  color: var(--text-primary);
+}
+
+.legend-dash {
+  width: 14px;
+  height: 0;
+  border-top: 2px dashed #f1bd7b;
+  display: inline-block;
+}
