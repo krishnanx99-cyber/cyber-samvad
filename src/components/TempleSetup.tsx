@@ -15,6 +15,8 @@ export interface ZoneConfig {
 export interface TempleConfig {
   templeName: string
   imageDataUrl?: string | null
+  /** Original uploaded-image width ÷ height; keeps editor and dashboard aligned. */
+  imageAspectRatio?: number
   zones: Record<ZoneId, ZoneConfig>
 }
 
@@ -49,6 +51,13 @@ export function isValidTempleConfig(value: unknown): value is TempleConfig {
   const candidate = value as Partial<TempleConfig>
   if (typeof candidate.templeName !== 'string' || candidate.templeName.trim() === '') return false
   if (candidate.imageDataUrl !== undefined && candidate.imageDataUrl !== null && typeof candidate.imageDataUrl !== 'string') {
+    return false
+  }
+  if (candidate.imageAspectRatio !== undefined
+    && (typeof candidate.imageAspectRatio !== 'number'
+      || !Number.isFinite(candidate.imageAspectRatio)
+      || candidate.imageAspectRatio < 0.25
+      || candidate.imageAspectRatio > 4)) {
     return false
   }
   if (!candidate.zones || typeof candidate.zones !== 'object' || Array.isArray(candidate.zones)) return false
@@ -188,8 +197,20 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
     const reader = new FileReader()
     reader.onload = () => {
       if (typeof reader.result === 'string') {
-        onChange({ ...config, imageDataUrl: reader.result })
-        showMessage('Floor plan loaded successfully')
+        const image = new Image()
+        image.onload = () => {
+          onChange({
+            ...config,
+            imageDataUrl: reader.result as string,
+            imageAspectRatio: image.naturalWidth / image.naturalHeight
+          })
+          showMessage('Floor plan loaded successfully. Align each zone, then apply your layout.')
+        }
+        image.onerror = () => {
+          onChange({ ...config, imageDataUrl: reader.result as string, imageAspectRatio: undefined })
+          showMessage('Floor plan loaded. Align each zone, then apply your layout.')
+        }
+        image.src = reader.result
       }
     }
     reader.readAsDataURL(file)
@@ -208,7 +229,7 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
   }
 
   const clearImage = () => {
-    onChange({ ...config, imageDataUrl: null })
+    onChange({ ...config, imageDataUrl: null, imageAspectRatio: undefined })
     if (fileInputRef.current) fileInputRef.current.value = ''
     showMessage('Floor plan removed. Using default schematic.')
   }
@@ -274,6 +295,12 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
   const handleSaveToBrowser = () => {
     saveStoredTempleConfig(config)
     showMessage('Configuration saved to browser!')
+  }
+
+  const handleApplyAndClose = () => {
+    saveStoredTempleConfig(config)
+    showMessage('Calibration saved to this browser')
+    onClose?.()
   }
 
   const handleExportJSON = () => {
@@ -373,6 +400,7 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
             <div
               ref={containerRef}
               className={`setup-canvas-container ${isDraggingOver ? 'dragging-over' : ''}`}
+              style={{ aspectRatio: config.imageAspectRatio ?? 16 / 9 }}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onDragOver={(e) => {
@@ -477,6 +505,7 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
                 </button>
               )}
               <span className="privacy-note">Local-only processing. No data uploaded to external servers.</span>
+              <span className="privacy-note">1. Upload plan  2. Select or drag each coloured zone  3. Resize from its bottom-right handle  4. Apply &amp; Return</span>
             </div>
           </div>
 
@@ -670,7 +699,7 @@ export function TempleSetup({ config: incomingConfig, onChange, isOpen = false, 
                   type="button"
                   className="btn btn-primary btn-block"
                   style={{ marginTop: '12px' }}
-                  onClick={onClose}
+                  onClick={handleApplyAndClose}
                 >
                   Apply & Return to Dashboard
                 </button>

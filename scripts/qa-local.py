@@ -25,6 +25,15 @@ def main() -> None:
         checks["setup_dialog_opens"] = page.get_by_role("dialog").is_visible()
         zone_ids = [value.strip().lower() for value in page.get_by_role("dialog").locator(".zone-box-id").all_inner_texts()]
         checks["setup_zones"] = set(("entry", "queuea", "queueb", "darshan")).issubset(zone_ids)
+
+        # A calibration adjustment must survive Apply & Return and a full reload.
+        dialog = page.get_by_role("dialog")
+        x_position_slider = dialog.locator("input[type='range']").nth(0)
+        x_position_slider.fill("42")
+        page.get_by_role("button", name="Apply & Return to Dashboard").click()
+        page.reload(wait_until="networkidle")
+        page.locator("button.map-setup-btn").click()
+        checks["calibration_persists"] = page.get_by_role("dialog").locator("input[type='range']").nth(0).input_value() == "42"
         page.locator("button[aria-label='Close setup modal']").click()
         checks["setup_dialog_closes"] = not page.get_by_role("dialog").is_visible()
 

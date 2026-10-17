@@ -95,7 +95,10 @@ export function TempleMap({
 
       {/* Main View: Custom Uploaded Floor Plan OR Default SVG Schematic */}
       {hasCustomImage && config?.imageDataUrl ? (
-        <div className="custom-map-viewport">
+        <div
+          className="custom-map-viewport"
+          style={{ aspectRatio: config.imageAspectRatio ?? 16 / 9 }}
+        >
           <img
             src={config.imageDataUrl}
             alt={config.templeName || 'Temple Floor Plan'}
